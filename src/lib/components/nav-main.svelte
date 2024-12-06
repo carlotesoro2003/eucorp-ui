@@ -2,7 +2,6 @@
 	import * as Collapsible from "$lib/components/ui/collapsible/index.js";
 	import * as Sidebar from "$lib/components/ui/sidebar/index.js";
 	import ChevronRight from "lucide-svelte/icons/chevron-right";
-  import { title } from "process";
 
 	let {
 		items,
@@ -22,11 +21,6 @@
 		}[];
 	} = $props();
 
-	let highlightedItem: any = $state(items[0]);
-	let highlightedSubItem: any = $state(items[0]?.items ? items[0].items[0] : null);
-
-	$inspect(highlightedItem);
-	$inspect(highlightedSubItem);
 </script>
 
 <Sidebar.Group>
@@ -39,9 +33,6 @@
 						<Collapsible.Trigger>
 							{#snippet child({ props })}
 								<Sidebar.MenuButton {...props}
-								onclick={() => {
-									highlightedItem = mainItem;
-								}}	
 								>
 									{#snippet tooltipContent()}
 										{mainItem.title}
@@ -65,13 +56,7 @@
 								<Sidebar.MenuSub>
 									{#each mainItem.items as subItem (subItem.title)}
 										<Sidebar.MenuSubItem>
-											
-											<Sidebar.MenuSubButton
-											onclick={() => {
-												highlightedSubItem = subItem;
-											}}
-											isActive={highlightedSubItem.title === subItem.title}
-											>
+											<Sidebar.MenuSubButton>
 												{#snippet child({ props })}
 													<a href={subItem.url} {...props}>
 														<span>{subItem.title}</span>

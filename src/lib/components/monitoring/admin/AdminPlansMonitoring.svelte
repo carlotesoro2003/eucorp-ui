@@ -172,7 +172,7 @@ const generateSummaryPDF = async () => {
 </script>
 
 <!-- HTML Structure -->
-<div class="min-h-screen p-8 bg-base-300">
+<div class="min-h-screen p-8 ">
   <h1 class="text-3xl font-bold mb-6">Plans Monitoring</h1>
 
   <!-- Filter Buttons -->

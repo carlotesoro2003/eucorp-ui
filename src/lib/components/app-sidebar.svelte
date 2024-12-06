@@ -38,7 +38,6 @@
 		  url: "#",
 		  icon: Bot,
 		  items: [
-			{title: "Dashboard", url: '/dashboard'},
 			{ title: "Users", url: "/users" },
 			{ title: "Departments", url: "/departments" },
 			{ title: "Leads", url: "/leads" },

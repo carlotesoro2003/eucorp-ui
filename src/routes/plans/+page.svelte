@@ -170,7 +170,7 @@
   });
 </script>
 
-<div class="container bg-base-300 mx-auto p-4">
+<div class="container  mx-auto p-4">
   <!-- Alert Message -->
   {#if alertMessage}
       <div class="alert alert-{alertType} mb-4 text-white">
@@ -252,7 +252,7 @@
   {#if strategicGoals.length === 0 && !isLoading}
       <div class="text-center py-4  text-lg">No strategic goals found.</div>
   {:else}
-      <table class="table table-zebra w-full">
+      <table class="table w-full">
           <thead>
               <tr>
                   <th>Goal No</th>
@@ -272,9 +272,9 @@
                       <td>{goal.kpi}</td>
                       <td>{getLeadNameById(goal.lead_id)}</td>
                       <td class="flex justify-center space-x-2">
-                          <button class="btn btn-sm bg-teal-500 hover:bg-teal-600 text-white font-medium" on:click={() => viewObjectives(goal.id)}>View</button>
-                          <button class="btn btn-sm bg-blue-600 hover:bg-blue-700 text-white font-medium" on:click={() => openEditDialog(goal)}>Edit</button>
-                          <button class="btn btn-sm bg-red-600 hover:bg-red-700  text-white font-medium" on:click={() => deleteStrategicGoal(goal.id)}>Delete</button>
+                          <button class="btn btn-primary" on:click={() => viewObjectives(goal.id)}>View</button>
+                          <button class="btn btn-secondary" on:click={() => openEditDialog(goal)}>Edit</button>
+                          <button class="btn btn-error" on:click={() => deleteStrategicGoal(goal.id)}>Delete</button>
                       </td>
                   </tr>
               {/each}
