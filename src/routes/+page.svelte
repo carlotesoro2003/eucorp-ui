@@ -67,7 +67,7 @@
           goto("/login");
         } else {
           console.log("User is verified. Redirecting to /...");
-          goto("/"); // Redirect to the main page upon successful verification
+          goto("/dashboard"); // Redirect to the main page upon successful verification
         }
       }
     } catch (err) {

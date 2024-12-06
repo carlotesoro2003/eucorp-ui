@@ -11,6 +11,15 @@
   import * as Breadcrumb from "$lib/components/ui/breadcrumb/index.js";
   import { Separator } from "$lib/components/ui/separator/index.js";
   import * as Sidebar from "$lib/components/ui/sidebar/index.js";
+  import {ModeWatcher} from "mode-watcher";
+
+  import Bell from "lucide-svelte/icons/bell";
+  import Sun from "lucide-svelte/icons/sun";
+  import Moon from "lucide-svelte/icons/moon";
+ 
+  import { toggleMode } from "mode-watcher";
+  import { Button } from "$lib/components/ui/button/index.js";
+
 
   let currentPath = "";
   let loading = true;
@@ -143,7 +152,7 @@
   });
 </script>
 
-
+<ModeWatcher />
 <!-- Render loading spinner during session validation -->
 {#if loading}
   <div class="flex items-center justify-center min-h-screen bg-base-300">
@@ -152,32 +161,51 @@
 
 {:else if user.session && user.isVerified}
 <Sidebar.Provider>
-	<AppSidebar />
-	<Sidebar.Inset>
-		<header
-			class="flex h-16 shrink-0 items-center gap-2 transition-[width,height] ease-linear group-has-[[data-collapsible=icon]]/sidebar-wrapper:h-12"
-		>
-			<div class="flex items-center gap-2 px-4">
-				<Sidebar.Trigger class="-ml-1" />
-				<Separator orientation="vertical" class="mr-2 h-4" />
-				<Breadcrumb.Root>
-					<Breadcrumb.List>
-						<Breadcrumb.Item class="hidden md:block">
-							<Breadcrumb.Link href="#">Building Your Application</Breadcrumb.Link>
-						</Breadcrumb.Item>
-						<Breadcrumb.Separator class="hidden md:block" />
-						<Breadcrumb.Item>
-							<Breadcrumb.Page>Data Fetching</Breadcrumb.Page>
-						</Breadcrumb.Item>
-					</Breadcrumb.List>
-				</Breadcrumb.Root>
-			</div>
-		</header>
-		<div class="flex flex-1 flex-col gap-4 p-4 pt-0">
-			<slot />
-		</div>
-	</Sidebar.Inset>
+  <AppSidebar />
+  <Sidebar.Inset>
+    <header
+      class="flex h-16 shrink-0 items-center justify-between gap-2 transition-[width,height] ease-linear group-has-[[data-collapsible=icon]]/sidebar-wrapper:h-12"
+    >
+      <!-- Left section -->
+      <div class="flex items-center gap-2 px-4">
+        <Sidebar.Trigger class="-ml-1" />
+        <Separator orientation="vertical" class="mr-2 h-4" />
+        <Breadcrumb.Root>
+          <Breadcrumb.List>
+            <Breadcrumb.Item class="hidden md:block">
+              <Breadcrumb.Link href="#">Building Your Application</Breadcrumb.Link>
+            </Breadcrumb.Item>
+            <Breadcrumb.Separator class="hidden md:block" />
+            <Breadcrumb.Item>
+              <Breadcrumb.Page>Data Fetching</Breadcrumb.Page>
+            </Breadcrumb.Item>
+          </Breadcrumb.List>
+        </Breadcrumb.Root>
+      </div>
+
+      <!-- Right section -->
+      <div class="flex items-center gap-3 pr-4">
+        <Button onclick={toggleMode} variant="outline" size="icon">
+          <Sun
+            class="h-[1.2rem] w-[1.2rem] rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0"
+          />
+          <Moon
+            class="absolute h-[1.2rem] w-[1.2rem] rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100"
+          />
+          <span class="sr-only">Toggle theme</span>
+        </Button>
+        <Button variant="outline" size="icon" onclick={() => alert('Notifications clicked!')}>
+          <Bell class="h-[1.2rem] w-[1.2rem]" />
+          <span class="sr-only">Notifications</span>
+        </Button>
+      </div>
+    </header>
+    <div class="flex flex-1 flex-col gap-4 p-4 pt-0">
+      <slot />
+    </div>
+  </Sidebar.Inset>
 </Sidebar.Provider>
+
 
 {:else if !user.session}
   <Login />

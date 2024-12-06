@@ -51,6 +51,7 @@
     "dotenv": "^16.4.7",
     "express": "^4.21.1",
     "jspdf": "^2.5.2",
-    "jspdf-autotable": "^3.8.4"
+    "jspdf-autotable": "^3.8.4",
+    "mode-watcher": "^0.5.0"
   }
 }

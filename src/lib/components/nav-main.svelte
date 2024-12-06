@@ -2,6 +2,7 @@
 	import * as Collapsible from "$lib/components/ui/collapsible/index.js";
 	import * as Sidebar from "$lib/components/ui/sidebar/index.js";
 	import ChevronRight from "lucide-svelte/icons/chevron-right";
+  import { title } from "process";
 
 	let {
 		items,
@@ -14,11 +15,18 @@
 			icon?: any;
 			isActive?: boolean;
 			items?: {
+
 				title: string;
 				url: string;
 			}[];
 		}[];
 	} = $props();
+
+	let highlightedItem: any = $state(items[0]);
+	let highlightedSubItem: any = $state(items[0]?.items ? items[0].items[0] : null);
+
+	$inspect(highlightedItem);
+	$inspect(highlightedSubItem);
 </script>
 
 <Sidebar.Group>
@@ -30,17 +38,25 @@
 					<Sidebar.MenuItem {...props}>
 						<Collapsible.Trigger>
 							{#snippet child({ props })}
-								<Sidebar.MenuButton {...props}>
+								<Sidebar.MenuButton {...props}
+								onclick={() => {
+									highlightedItem = mainItem;
+								}}	
+								>
 									{#snippet tooltipContent()}
 										{mainItem.title}
 									{/snippet}
-									{#if mainItem.icon}
-										<mainItem.icon />
-									{/if}
-									<span>{mainItem.title}</span>
-									<ChevronRight
-										class="ml-auto transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90"
-									/>
+									{#snippet child({props})}
+										<a href={mainItem.url} {...props}>
+											<mainItem.icon class="w-6 h-6" />
+											<span>{mainItem.title}</span>
+											{#if mainItem.title !== 'Dashboard'}
+											<ChevronRight
+												class="ml-auto transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90"
+											/>
+											{/if}
+										</a>
+									{/snippet}
 								</Sidebar.MenuButton>
 							{/snippet}
 						</Collapsible.Trigger>
@@ -49,7 +65,13 @@
 								<Sidebar.MenuSub>
 									{#each mainItem.items as subItem (subItem.title)}
 										<Sidebar.MenuSubItem>
-											<Sidebar.MenuSubButton>
+											
+											<Sidebar.MenuSubButton
+											onclick={() => {
+												highlightedSubItem = subItem;
+											}}
+											isActive={highlightedSubItem.title === subItem.title}
+											>
 												{#snippet child({ props })}
 													<a href={subItem.url} {...props}>
 														<span>{subItem.title}</span>
