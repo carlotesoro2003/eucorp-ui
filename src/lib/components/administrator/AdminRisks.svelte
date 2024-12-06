@@ -3,7 +3,7 @@
   import { onMount } from "svelte";
   import jsPDF from "jspdf";
   import autoTable from "jspdf-autotable";
-
+  
   interface Risk {
     id: string;
     rrn: string;

@@ -318,13 +318,15 @@
           <td>{risk.budget}</td>
           <td>
             <button
-              class="btn btn-primary"
+              class="btn btn-sm btn-primary"
               on:click={() => openRiskAssessmentDialog(risk)}
               disabled={riskAssessments.some((ra) => ra.risk_id === risk.id)}
             >
               Add Assessment
             </button>
-            <button class="btn btn-error" on:click={() => deleteRisk(risk.id)}>
+          </td>
+          <td>
+            <button class="btn btn-sm btn-error" on:click={() => deleteRisk(risk.id)}>
               Delete
             </button>
           </td>
@@ -335,7 +337,7 @@
 
   {#if showDialog}
     <div class="modal modal-open">
-      <div class="modal-box bg-gray-800 text-white">
+      <div class="modal-box ">
         <h3 class="font-bold text-lg">
           Add Risk Assessment for {selectedRisk?.rrn}
         </h3>

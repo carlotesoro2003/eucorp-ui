@@ -1,9 +1,9 @@
 <script lang="ts">
-  import { goto } from "$app/navigation";
   import { supabase } from "$lib/supabaseClient";
   import { onMount } from "svelte";
 
   interface Risk {
+    id?: string; // UUID is optional until saved
     rrn: string;
     risk_statement: string;
     classification: number | null;
@@ -20,80 +20,73 @@
 
   let risks: Risk[] = [];
   let classification: Classification[] = [];
-  let session: any = null;
   let profile: any = null;
   let departmentName = "";
   let isLoading = true;
-  let nextRrnNumber = 1;
-
-  // Alert states
   let successMessage: string | null = null;
   let errorMessage: string | null = null;
+  let nextRrnNumber = 1;
 
+  // Fetch Profile and Classification Data
   const fetchUserProfile = async () => {
-    isLoading = true;
     try {
       const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
       if (sessionError) throw sessionError;
 
-      session = sessionData.session;
-      if (session) {
-        const { data: profileData, error: profileError } = await supabase
-          .from("profiles")
-          .select("id, department_id")
-          .eq("id", session.user.id)
-          .single();
+      const userId = sessionData?.session?.user?.id;
+      if (!userId) throw new Error("No logged-in user found.");
 
-        if (profileError) throw profileError;
-        profile = profileData;
+      const { data: profileData, error: profileError } = await supabase
+        .from("profiles")
+        .select("id, department_id")
+        .eq("id", userId)
+        .single();
 
-        const { data: departmentData, error: departmentError } = await supabase
-          .from("departments")
-          .select("name")
-          .eq("id", profile.department_id)
-          .single();
+      if (profileError) throw profileError;
+      profile = profileData;
 
-        if (departmentError) throw departmentError;
-        departmentName = departmentData.name;
+      const { data: departmentData, error: departmentError } = await supabase
+        .from("departments")
+        .select("name")
+        .eq("id", profile.department_id)
+        .single();
 
-        await fetchRisks();
-        await fetchNextRrnNumber();
-        await fetchClassification();
-      } else {
-        errorMessage = "User is not logged in.";
-      }
+      if (departmentError) throw departmentError;
+      departmentName = departmentData.name;
+
+      await fetchRisks();
+      await fetchNextRrnNumber();
+      await fetchClassification();
     } catch (error) {
       console.error("Error fetching user profile or department:", error);
       errorMessage = "Failed to fetch profile or department details.";
-    } finally {
-      isLoading = false;
+    }
+  };
+
+  const fetchClassification = async () => {
+    try {
+      const { data, error } = await supabase.from("classification").select("id, name");
+      if (error) throw error;
+      classification = data || [];
+    } catch (error) {
+      console.error("Error fetching classifications:", error);
+      errorMessage = "Failed to fetch classifications.";
     }
   };
 
   const fetchRisks = async () => {
-    isLoading = true;
     try {
       const { data, error } = await supabase
         .from("risks")
         .select("*")
         .eq("profile_id", profile?.id)
         .order("rrn", { ascending: true });
-
       if (error) throw error;
 
-      risks = data.sort((a, b) => {
-        const getNumericPart = (rrn: string) => {
-          const match = rrn.match(/(\d+)$/);
-          return match ? parseInt(match[0], 10) : 0;
-        };
-
-        return getNumericPart(a.rrn) - getNumericPart(b.rrn);
-      });
+      risks = data || [];
     } catch (error) {
       console.error("Error fetching risks:", error);
       errorMessage = "Failed to fetch risks.";
-    } finally {
-      isLoading = false;
     }
   };
 
@@ -121,24 +114,13 @@
     }
   };
 
-  const fetchClassification = async () => {
-    try {
-      const { data, error } = await supabase
-        .from("classification")
-        .select("id, name");
-      if (error) throw error;
-      classification = data;
-    } catch (error) {
-      console.error("Error fetching classifications:", error);
-      errorMessage = "Failed to fetch classifications.";
-    }
-  };
-
   const addRow = () => {
+    const formattedRrn = `RRN-${departmentName}-${String(nextRrnNumber).padStart(3, "0")}`;
+    nextRrnNumber++;
     risks = [
       ...risks,
       {
-        rrn: `RRN-${departmentName}-${nextRrnNumber++}`,
+        rrn: formattedRrn,
         risk_statement: "",
         classification: null,
         actions: "",
@@ -157,42 +139,37 @@
   };
 
   const saveRisks = async () => {
-    isLoading = true;
-
     try {
-      const { error } = await supabase.from("risks").upsert(risks, { onConflict: "rrn" });
+      const sanitizedRisks = risks.map(({ id, ...risk }) => risk);
+      const { data, error } = await supabase.from("risks").upsert(sanitizedRisks, { onConflict: "rrn" });
       if (error) throw error;
 
-      successMessage = "Risks saved successfully!";
-      errorMessage = null;
+      // Update IDs in the `risks` array after saving
+      const updatedRisks = await supabase
+        .from("risks")
+        .select("*")
+        .eq("profile_id", profile?.id);
 
-      await fetchRisks();
-      await fetchNextRrnNumber();
+      if (updatedRisks.error) throw updatedRisks.error;
+
+      risks = updatedRisks.data || [];
+      successMessage = "Risks saved successfully!";
     } catch (error) {
       console.error("Error saving risks:", error);
-      successMessage = null;
       errorMessage = "Failed to save risks.";
-    } finally {
-      isLoading = false;
     }
   };
 
-  const adjustTextareaSize = (target: HTMLTextAreaElement) => {
-    target.style.height = "auto";
-    target.style.width = "auto";
-    target.style.height = `${target.scrollHeight}px`;
-    target.style.width = `${Math.max(300, target.scrollWidth)}px`; // Set a minimum width
-  };
-
-  onMount(() => {
-    fetchUserProfile();
+  onMount(async () => {
+    isLoading = true;
+    await fetchUserProfile();
+    isLoading = false;
   });
 </script>
 
 <div class="container mx-auto p-4">
   <h1 class="text-3xl font-bold mb-4">{departmentName} Risks Register</h1>
 
-  <!-- Alerts -->
   {#if successMessage}
     <div class="alert alert-success shadow-lg mb-4">
       <span>{successMessage}</span>
@@ -204,7 +181,6 @@
     </div>
   {/if}
 
-  <!-- Risks Table -->
   <div class="overflow-x-auto">
     <table class="table table-zebra w-full">
       <thead>
@@ -221,17 +197,11 @@
       <tbody>
         {#each risks as risk, index}
           <tr>
-            <td style="width: 200px;">
-              <input type="text" bind:value={risk.rrn} class="input input-bordered w-full" readonly />
+            <td>{risk.rrn}</td>
+            <td>
+              <textarea bind:value={risk.risk_statement} class="textarea textarea-bordered w-full"></textarea>
             </td>
             <td>
-              <textarea
-                bind:value={risk.risk_statement}
-                class="textarea textarea-bordered w-full"
-                on:input={(e) => adjustTextareaSize(e.target as HTMLTextAreaElement)}
-              ></textarea>
-            </td>
-            <td style="width: 250px;">
               <select bind:value={risk.classification} class="select select-bordered w-full">
                 <option value={null}>Select classification</option>
                 {#each classification as cls}
@@ -240,28 +210,16 @@
               </select>
             </td>
             <td>
-              <textarea
-                bind:value={risk.actions}
-                class="textarea textarea-bordered w-full"
-                on:input={(e) => adjustTextareaSize(e.target as HTMLTextAreaElement)}
-              ></textarea>
+              <textarea bind:value={risk.actions} class="textarea textarea-bordered w-full"></textarea>
             </td>
             <td>
-              <textarea
-                bind:value={risk.key_persons}
-                class="textarea textarea-bordered w-full"
-                on:input={(e) => adjustTextareaSize(e.target as HTMLTextAreaElement)}
-              ></textarea>
+              <textarea bind:value={risk.key_persons} class="textarea textarea-bordered w-full"></textarea>
             </td>
             <td>
-              <textarea
-              bind:value={risk.budget}
-              class="textarea textarea-bordered w-full"
-              on:input={(e) => adjustTextareaSize(e.target as HTMLTextAreaElement)}
-            ></textarea>
+              <input type="number" bind:value={risk.budget} class="input input-bordered w-full" />
             </td>
             <td>
-              <button on:click={() => removeRow(index)} class="btn btn-error">Remove</button>
+              <button class="btn btn-error btn-sm" on:click={() => removeRow(index)}>Remove</button>
             </td>
           </tr>
         {/each}
@@ -269,19 +227,8 @@
     </table>
   </div>
 
-  <!-- Actions -->
   <div class="mt-4 flex gap-4">
-    <button on:click={addRow} class="btn btn-primary">Add Row</button>
-    <button on:click={saveRisks} class="btn btn-success">Save All</button>
-    <button on:click={() => goto("/risks/riskAssessment")} class="btn btn-secondary">
-      Create Risk Assessment
-    </button>
+    <button class="btn btn-primary" on:click={addRow}>Add New Risk</button>
+    <button class="btn btn-success" on:click={saveRisks}>Save All Risks</button>
   </div>
-
-  <!-- Loading Indicator -->
-  {#if isLoading}
-    <div class="text-center mt-6">
-      <span class="loading loading-spinner"></span> Loading...
-    </div>
-  {/if}
 </div>
