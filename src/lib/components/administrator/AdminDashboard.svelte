@@ -80,33 +80,33 @@
   });
 </script>
 
-<div class="min-h-screen bg-gray-900 p-6 text-gray-100 space-y-6">
+<div class="min-h-screen  p-6 text-gray-100 space-y-6">
   <!-- Header with Welcome Message -->
-
+   
   <!-- Top Metrics Cards -->
   <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-    <div class="stats shadow bg-gray-800">
+    <div class="stats shadow ">
       <div class="stat">
         <div class="stat-title text-gray-400">Total Projects</div>
         <div class="stat-value text-blue-400">25</div>
         <div class="stat-desc text-gray-500">+10% this month</div>
       </div>
     </div>
-    <div class="stats shadow bg-gray-800">
+    <div class="stats shadow">
       <div class="stat">
         <div class="stat-title text-gray-400">Completed Tasks</div>
         <div class="stat-value text-green-400">120</div>
         <div class="stat-desc text-gray-500">+5% from last week</div>
       </div>
     </div>
-    <div class="stats shadow bg-gray-800">
+    <div class="stats shadow">
       <div class="stat">
         <div class="stat-title text-gray-400">Pending Approvals</div>
         <div class="stat-value text-yellow-400">8</div>
         <div class="stat-desc text-gray-500">Needs review</div>
       </div>
     </div>
-    <div class="stats shadow bg-gray-800">
+    <div class="stats shadow">
       <div class="stat">
         <div class="stat-title text-gray-400">New Members</div>
         <div class="stat-value text-purple-400">15</div>

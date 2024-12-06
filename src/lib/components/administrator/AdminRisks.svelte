@@ -61,6 +61,10 @@
   let riskAssessment: RiskAssessment[] = [];
   let isLoading = true;
   let loadingRiskAssessments = true;
+
+  let deletingRiskId: string | null = null;
+
+
   let successMessage: string | null = null;
   let errorMessage: string | null = null;
 
@@ -196,6 +200,28 @@
     doc.save("Risks_Assessment_Data.pdf");
   };
 
+  const deleteRisk = async (riskId: string) => {
+    deletingRiskId = riskId;
+    try {
+      const { error } = await supabase
+        .from("risks")
+        .delete()
+        .eq("id", riskId);
+
+      if (error) {
+        errorMessage = "Failed to delete risk.";
+        return;
+      }
+
+      risks = risks.filter((risk) => risk.id !== riskId);
+      successMessage = "Risk deleted successfully!";
+    } catch (error) {
+      errorMessage = "An unexpected error occurred.";
+    } finally {
+      deletingRiskId = null;
+    }
+  };
+
   // Fetch all data on mount
   onMount(() => {
     Promise.all([
@@ -244,6 +270,7 @@
             <th>Key Persons</th>
             <th>Budget</th>
             <th>Risk Assessments</th>
+            <th>Actions</th>
           </tr>
         </thead>
         <tbody>
@@ -277,6 +304,19 @@
                     No assessment data available.
                   {/if}
                 {/if}
+              </td> 
+              <td>
+                <button
+                class="btn btn-error btn-sm"
+                on:click={() => deleteRisk(risk.id)}
+                disabled={deletingRiskId === risk.id}
+              >
+                {#if deletingRiskId === risk.id}
+                  Deleting...
+                {:else}
+                  Delete
+                {/if}
+              </button>
               </td>
             </tr>
           {/each}

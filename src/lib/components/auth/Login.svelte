@@ -1,12 +1,17 @@
 <script lang="ts">
   import { supabase } from "$lib/supabaseClient";
+  import Eye from "lucide-svelte/icons/eye";
+  import EyeOff from "lucide-svelte/icons/eye-off";
+
   let email = "";
   let password = "";
+  let confirmPassword = "";
   let firstName = "";
   let lastName = "";
   let message = "";
   let isLoading = false;
   let isLogin = true; // Toggle between Login and Registration mode
+  let showPassword = false; // Toggle password visibility
 
   async function handleAuth() {
     isLoading = true;
@@ -14,12 +19,18 @@
 
     if (!isLogin) {
       // Registration flow
+      if (password !== confirmPassword) {
+        message = "Passwords do not match.";
+        isLoading = false;
+        return;
+      }
+
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
         options: {
-          data: { first_name: firstName, last_name: lastName }
-        }
+          data: { first_name: firstName, last_name: lastName },
+        },
       });
 
       if (error) {
@@ -199,13 +210,49 @@
           required
           class="input input-bordered w-full"
         />
-        <input
-          type="password"
-          bind:value={password}
-          placeholder="Password"
-          required
-          class="input input-bordered w-full"
-        />
+        <div class="relative">
+          <input
+            type={showPassword ? "text" : "password"}
+            bind:value={password}
+            placeholder="Password"
+            required
+            class="input input-bordered w-full"
+          />
+          <button
+            type="button"
+            class="absolute inset-y-0 right-4 flex items-center"
+            on:click={() => (showPassword = !showPassword)}
+          >
+            {#if showPassword}
+              <EyeOff class="w-5 h-5" />
+            {:else}
+              <Eye class="w-5 h-5" />
+            {/if}
+          </button>
+        </div>
+
+        {#if !isLogin}
+        <div class="relative">
+          <input
+            type={showPassword ? "text" : "password"}
+            bind:value={confirmPassword}
+            placeholder="Confirm Password"
+            required
+            class="input input-bordered w-full"
+          />
+          <button
+            type="button"
+            class="absolute inset-y-0 right-4 flex items-center"
+            on:click={() => (showPassword = !showPassword)}
+          >
+            {#if showPassword}
+              <EyeOff class="w-5 h-5" />
+            {:else}
+              <Eye class="w-5 h-5" />
+            {/if}
+          </button>
+        </div>
+        {/if}
 
         <button
           type="submit"

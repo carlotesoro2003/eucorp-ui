@@ -6,11 +6,13 @@
 	import { derived } from "svelte/store";
 	import { userStore } from "$lib/stores/userStore";
 
+
   
 	import AudioWaveform from "lucide-svelte/icons/audio-waveform";
 	import GalleryVerticalEnd from "lucide-svelte/icons/gallery-vertical-end";
 	import Bot from "lucide-svelte/icons/bot";
 	import ChartPie from "lucide-svelte/icons/chart-pie";
+	import ChartArea from "lucide-svelte/icons/chart-area";
 	import SquareTerminal from "lucide-svelte/icons/square-terminal";
   
 	const adminData = {
@@ -58,7 +60,7 @@
 		{
 		  title: "Monitoring",
 		  url: "#",
-		  icon: ChartPie,
+		  icon: ChartArea,
 		  items: [
 			{ title: "Mid-Year Monitoring ", url: "/monitoring/mid-year" },
 			{ title: "Year-End Monitoring", url: "/monitoring" },
@@ -83,7 +85,7 @@
 	  navMain: [
 		{
 		  title: "Dashboard",
-		  url: "#",
+		  url: "/dashboard",
 		  icon: SquareTerminal,
 		  isActive: true,
 		},
@@ -111,7 +113,7 @@
   
 	// Derive sidebar data dynamically
 	const sidebarData = derived(userStore, ($userStore) =>
-	  $userStore.userRole === "admin" ? adminData : userData
+	  $userStore.userRole === "admin" || "vice_president" || "president" ? adminData : userData
 	);
   
 	let {

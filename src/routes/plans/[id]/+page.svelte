@@ -29,7 +29,10 @@
   let objectives: StrategicObjective[] = [];
   let isLoading = false;
   let goalId: number | null = null;
+
   let adminName: string | null = null;
+  let vicePresidentName: string | null = null;
+  let presidentName: string | null = null;
 
   let editingObjective: StrategicObjective | null = null;
   let updatedObjective: StrategicObjective = {} as StrategicObjective;
@@ -55,6 +58,28 @@
       }
     } catch (error) {
       console.error("Error fetching admin details:", error);
+    }
+  };
+
+  const fetchVPAndPresidentNames = async () => {
+    try {
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("first_name, last_name, role")
+        .in("role", ["vice_president", "president"]);
+
+      if (error) {
+        console.error("Error fetching VP and President names:", error);
+        return;
+      }
+
+      const vp = data?.find((user) => user.role === "vice_president");
+      const president = data?.find((user) => user.role === "president");
+
+      vicePresidentName = vp ? `${vp.first_name} ${vp.last_name}` : "N/A";
+      presidentName = president ? `${president.first_name} ${president.last_name}` : "N/A";
+    } catch (error) {
+      console.error("Error fetching VP and President details:", error);
     }
   };
 
@@ -147,6 +172,11 @@
       doc.text(`Lead: ${goal.lead}`, 14, 37); // Lead Name
     }
 
+    // Add VP and President names
+    doc.setFontSize(12);
+    doc.text(`Vice President: ${vicePresidentName || "N/A"}`, 14, 44);
+    doc.text(`President: ${presidentName || "N/A"}`, 14, 51);
+
     // Prepare table rows
     const rows = objectives.map((obj) => [
       obj.name,
@@ -171,7 +201,7 @@
     autoTable(doc, {
       head: [headers],
       body: rows,
-      startY: 45, // Start below the goal details
+      startY: 58, // Start below the VP/President details
       theme: "grid",
       styles: { fontSize: 10 }, // Adjust font size for better fitting
     });
@@ -194,6 +224,7 @@
     $: goalId = $page.params.id ? parseInt($page.params.id) : null;
     fetchGoalDetails();
     fetchAdminName(); // Fetch admin name dynamically
+    fetchVPAndPresidentNames(); // Fetch VP and President names
   });
 </script>
 

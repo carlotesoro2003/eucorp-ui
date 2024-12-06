@@ -49,7 +49,7 @@
   {:else if errorMessage}
     <p class="text-red-500">{errorMessage}</p>
   {:else}
-    {#if profile?.role === 'admin'}
+    {#if profile?.role === 'admin'  || profile?.role === 'vice_president' || profile?.role === 'president'}
       <AdminRisks />
     {:else}
       <DepartmentRisks />

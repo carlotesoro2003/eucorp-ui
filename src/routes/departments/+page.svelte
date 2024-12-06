@@ -17,6 +17,7 @@
     onMount(async () => {
       await fetchDepartments();
     });
+    
   
     const fetchDepartments = async () => {
       const { data, error } = await supabase.from('departments').select('id, name, full_name');
@@ -91,7 +92,7 @@
     };
   </script>
   
-  <div class="min-h-screen bg-base-300 p-8">
+  <div class="min-h-screen p-8">
     <h1 class="text-3xl font-bold mb-6">Department List</h1>
   
     <!-- Alert -->

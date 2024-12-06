@@ -217,8 +217,8 @@ onMount(() => {
 {:else}
   <div class="flex items-center justify-center min-h-screen bg-base-300">
     <div class="text-center">
-      <h1 class="text-2xl font-bold text-yellow-500 mb-4">Pending for System Access</h1>
-      <p class="text-white">Your account is under review. Please wait for verification.</p>
+      <h1 class="text-4xl font-bold  mb-4">Pending for System Access</h1>
+      <p>Your account is under review. Please wait for verification.</p>
     </div>
   </div>
 {/if}

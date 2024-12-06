@@ -3,6 +3,8 @@
   import { onMount } from "svelte";
   import { supabase, supabaseAdmin } from "$lib/supabaseClient";
 
+  
+
   let users: Array<{
     id: string;
     first_name: string;
@@ -82,47 +84,58 @@
   };
 
   const saveProfile = async () => {
-    if (selectedUser) {
-      if (
-        !selectedRole ||
-        (selectedRole !== "admin" && !selectedDepartmentId)
-      ) {
-        displayAlert("Role or department selection is missing.", "error");
-        return;
-      }
+  if (selectedUser) {
+    // Define roles that do not require a department
+    const rolesWithoutDepartment = ["admin", "vice_president", "president"];
 
-      saving = true;
-      const { error } = await supabase
-        .from("profiles")
-        .update({
+    // Validate role and department
+    if (
+      !selectedRole || // Role is required
+      (!rolesWithoutDepartment.includes(selectedRole) && !selectedDepartmentId) // Department is required for other roles
+    ) {
+      displayAlert("Role or department selection is missing.", "error");
+      return;
+    }
+
+    saving = true;
+
+    // Update the profile in Supabase
+    const { error } = await supabase
+      .from("profiles")
+      .update({
+        first_name: selectedUser.first_name,
+        last_name: selectedUser.last_name,
+        department_id: rolesWithoutDepartment.includes(selectedRole)
+          ? undefined // Set department to undefined for roles that don't require it
+          : selectedDepartmentId,
+        role: selectedRole,
+      })
+      .eq("id", selectedUser.id);
+
+    if (error) {
+      displayAlert("Error updating profile: " + error.message, "error");
+    } else {
+      // Update the local users array
+      const updatedUserIndex = users.findIndex(
+        (user) => user.id === selectedUser?.id
+      );
+      if (updatedUserIndex >= 0) {
+        users[updatedUserIndex] = {
+          ...users[updatedUserIndex],
           first_name: selectedUser.first_name,
           last_name: selectedUser.last_name,
-          department_id: selectedRole !== "admin" ? selectedDepartmentId : null,
+          department_id: selectedDepartmentId || undefined,
           role: selectedRole,
-        })
-        .eq("id", selectedUser.id);
-
-      if (error) {
-        displayAlert("Error updating profile: " + error.message, "error");
-      } else {
-        const updatedUserIndex = users.findIndex(
-          (user) => user.id === selectedUser?.id
-        );
-        if (updatedUserIndex >= 0) {
-          users[updatedUserIndex] = {
-            ...users[updatedUserIndex],
-            first_name: selectedUser.first_name,
-            last_name: selectedUser.last_name,
-            department_id: selectedDepartmentId || undefined,
-            role: selectedRole,
-          };
-        }
-        displayAlert("Profile updated successfully!", "success");
-        selectedUser = null;
+        };
       }
-      saving = false;
+      displayAlert("Profile updated successfully!", "success");
+      selectedUser = null; // Reset selected user
     }
-  };
+
+    saving = false; // Stop saving state
+  }
+};
+
 
   const approveUser = async (userId: string) => {
     approvingUserId = userId; // Start spinner for this user
@@ -181,7 +194,7 @@
   };
 </script>
 
-<div class="min-h-screen bg-base-300 p-8">
+<div class="min-h-screen p-8">
   {#if showAlert}
     <div class="alert alert-{alertType} shadow-lg mb-4">
       <div>
@@ -208,7 +221,7 @@
       </thead>
       <tbody>
         {#each users as user}
-          <tr class="hover:bg-gray-800">
+          <tr >
             <td>
               {#if user.profile_pic}
                 <img
@@ -238,14 +251,14 @@
             </td>
             <td>
               <button
-                class="btn btn-sm bg-blue-600 hover:bg-blue-700 text-white font-medium"
+                class="btn btn-sm btn-primary text-white font-medium"
                 on:click={() => editUser(user)}
               >
                 Edit
               </button>
               {#if !user.is_verified}
                 <button
-                  class="btn btn-sm bg-green-600 hover:bg-green-700 text-white font-medium {approvingUserId ===
+                  class="btn btn-sm btn-secondary text-white font-medium {approvingUserId ===
                   user.id
                     ? 'loading'
                     : ''}"
@@ -260,7 +273,7 @@
                 </button>
               {/if}
               <button
-                class="btn btn-sm bg-red-600 hover:bg-red-700 text-white font-medium {deletingUserId ===
+                class="btn btn-sm btn-error text-white font-medium {deletingUserId ===
                 user.id
                   ? 'loading'
                   : ''}"
@@ -311,9 +324,11 @@
             <option value="" disabled>Select Role</option>
             <option value="admin">Admin</option>
             <option value="user">User</option>
+            <option value="vice_president">Vice President</option>
+            <option value="president">President</option>
           </select>
 
-          {#if selectedRole !== "admin"}
+          {#if selectedRole !== "admin" && selectedRole !== "vice_president" && selectedRole !== "president"}
             <label for="department" class="label text-white">Department</label>
             <select
               id="department"

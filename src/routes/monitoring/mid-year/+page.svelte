@@ -57,7 +57,7 @@
   };
 </script>
 
-<div class="min-h-screen bg-base-300 p-8">
+<div class="min-h-screen  p-8">
   <div role="tablist" class="tabs tabs-boxed">
     <a
       role="tab"
@@ -85,7 +85,7 @@
       <p class="mt-2">Loading...</p>
     </div>
   {:else if session !== null && profile}
-    {#if profile.role === 'admin'}
+    {#if profile.role === 'admin' || profile.role === 'vice_president' || profile.role === 'president'}
       {#if activeTab === 'Plans'}
         <AdminPlansMonitoring />
       {:else if activeTab === 'Risks'}

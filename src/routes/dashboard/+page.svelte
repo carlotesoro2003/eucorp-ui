@@ -36,7 +36,7 @@
         
     </script>
 
-<div class="min-h-screen bg-base-300 p-8">
+<div class="min-h-screen  p-8">
     <div class="flex flex-col items-center justify-center w-full h-full">
       <div class="w-full ">
         {#if loading}
@@ -49,7 +49,7 @@
             Welcome, {profile.first_name} {profile.last_name}
           </h1>
           <div class="w-full">
-            {#if profile.role === 'admin'}
+            {#if profile.role === 'admin' || profile.role === 'vice_president' || profile.role === 'president'}
               <AdminDashboard />
             {:else if profile.role === 'user'}
               <DepartmentDashboard />
