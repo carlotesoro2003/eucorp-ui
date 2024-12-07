@@ -15,8 +15,8 @@
     objective_id: number;
     is_approved: boolean;
     profile_id: string | null;
-    department_name: string | null; // For department display
-    user_name: string | null; // User's name
+    department_name: string | null; 
+    user_name: string | null; 
   }
 
   interface StrategicObjective {

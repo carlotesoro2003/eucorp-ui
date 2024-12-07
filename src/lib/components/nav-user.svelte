@@ -107,10 +107,6 @@
 				Account
 			</DropdownMenu.Item>
 			<DropdownMenu.Item>
-			  <CreditCard />
-			  
-			</DropdownMenu.Item>
-			<DropdownMenu.Item>
 			  <Bell />
 			  Settings
 			</DropdownMenu.Item>
