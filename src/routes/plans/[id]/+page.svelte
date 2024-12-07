@@ -269,6 +269,7 @@
             <th>Target</th>
             <th>Evaluation Measures</th>
             <th>Actions</th>
+            <th></th>
           </tr>
         </thead>
         <tbody>
@@ -331,11 +332,12 @@
                 <td>{objective.eval_measures}</td>
                 <td>
                   <button
-                    on:click={() => handleObjectiveClick(objective.id)}
-                    class="btn btn-primary text-white"
+                  on:click={() => handleObjectiveClick(objective.id)}
+                  class="btn btn-primary text-white"
                   >
-                    View
+                    See Action Plans
                   </button>
+                <td>
                   <button
                     on:click={() => {
                       editingObjective = objective;

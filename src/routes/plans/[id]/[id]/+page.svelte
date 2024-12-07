@@ -13,8 +13,8 @@
     key_person_responsible: string;
     created_at: string;
     objective_id: number;
-    is_approved: boolean; 
-    profile_id: string; 
+    is_approved: boolean;
+    profile_id: string;
   }
 
   interface StrategicObjective {
@@ -28,6 +28,9 @@
   }
 
   let actionPlans: ActionPlan[] = [];
+  let displayedActionPlans: ActionPlan[] = [];
+  let filterType: "all" | "approved" | "notApproved" = "all";
+
   let objective: StrategicObjective | null = null;
   let strategicGoal: StrategicGoal | null = null;
   let objective_id: number | null = null;
@@ -45,10 +48,12 @@
           .from("action_plans")
           .select("*")
           .eq("objective_id", objective_id);
+
         if (plansError) {
           console.error("Error fetching action plans:", plansError);
         } else {
           actionPlans = plansData;
+          applyFilter(); // Apply filter after fetching action plans
         }
 
         // Fetch objective
@@ -87,10 +92,18 @@
     }
   });
 
-  // Approve action plan and add to plan_monitoring table
+  const applyFilter = () => {
+    if (filterType === "approved") {
+      displayedActionPlans = actionPlans.filter((plan) => plan.is_approved);
+    } else if (filterType === "notApproved") {
+      displayedActionPlans = actionPlans.filter((plan) => !plan.is_approved);
+    } else {
+      displayedActionPlans = [...actionPlans];
+    }
+  };
+
   const approveActionPlan = async (planId: number) => {
     try {
-      // Fetch profile_id from the action_plan
       const { data: planData, error: fetchError } = await supabase
         .from("action_plans")
         .select("profile_id")
@@ -104,7 +117,6 @@
 
       const planProfileId = planData.profile_id;
 
-      // Update is_approved field in action_plan
       const { error: updateError } = await supabase
         .from("action_plans")
         .update({ is_approved: true })
@@ -115,7 +127,6 @@
         return;
       }
 
-      // Add to plan_monitoring table
       const { error: insertError } = await supabase.from("plan_monitoring").insert({
         action_plan_id: planId,
         profile_id: planProfileId,
@@ -124,10 +135,10 @@
       if (insertError) {
         console.error("Error inserting into plan_monitoring:", insertError);
       } else {
-        // Update local state
         actionPlans = actionPlans.map((plan) =>
           plan.id === planId ? { ...plan, is_approved: true } : plan
         );
+        applyFilter();
       }
     } catch (error) {
       console.error("Error approving action plan:", error);
@@ -141,13 +152,13 @@
         console.error("Error deleting action plan:", error);
       } else {
         actionPlans = actionPlans.filter((plan) => plan.id !== planId);
+        applyFilter();
       }
     } catch (error) {
       console.error("Error deleting action plan:", error);
     }
   };
 
-  // Export to PDF using jsPDF and AutoTable
   const exportToPDF = () => {
     const doc = new jsPDF("landscape");
     const title = `Action Plans for Objective: ${objective?.name || "N/A"}`;
@@ -155,12 +166,10 @@
       ? `Strategic Goal: ${strategicGoal.name}`
       : "No Strategic Goal Assigned";
 
-    // Add title
     doc.setFontSize(10);
     doc.text(title, 14, 15);
     doc.text(goalName, 14, 25);
 
-    // Define table data
     const columns = [
       "Actions Taken",
       "KPI",
@@ -168,7 +177,7 @@
       "Key Person Responsible",
       "Approved",
     ];
-    const rows = actionPlans.map((plan) => [
+    const rows = displayedActionPlans.map((plan) => [
       plan.actions_taken,
       plan.kpi,
       plan.target_output,
@@ -176,47 +185,47 @@
       plan.is_approved ? "Yes" : "No",
     ]);
 
-    // Add AutoTable
     autoTable(doc, {
       head: [columns],
       body: rows,
       startY: 35,
       theme: "grid",
       styles: { fontSize: 10 },
-      headStyles: { fillColor: [41, 128, 185] }, 
+      headStyles: { fillColor: [41, 128, 185] },
     });
 
     doc.save("ActionPlans.pdf");
   };
 </script>
 
-<!-- HTML Structure -->
+
 <div class="min-h-screen p-8">
   <h1 class="text-2xl font-bold mb-4">Action Plans</h1>
 
-  <!-- Objective and Goal Information -->
-  <div class="mb-4">
-    {#if objective}
-      {#if strategicGoal}
-        <p><strong>Strategic Goal:</strong> {strategicGoal.name}</p>
-      {/if}
-      <p><strong>Objective Name:</strong> {objective.name}</p>
-    {:else if isLoading}
-      <h2 class="text-xl font-bold">Loading Objective...</h2>
-    {:else}
-      <h2 class="text-xl font-bold">Objective not found.</h2>
-    {/if}
+  <!-- Filters -->
+  <div class="mb-4 flex gap-4">
+    <button class="btn btn-primary" on:click={() => { filterType = "all"; applyFilter(); }}>
+      All
+    </button>
+    <button class="btn btn-secondary" on:click={() => { filterType = "approved"; applyFilter(); }}>
+      Approved
+    </button>
+    <button class="btn btn-error" on:click={() => { filterType = "notApproved"; applyFilter(); }}>
+      Not Approved
+    </button>
   </div>
 
   <!-- Export to PDF -->
-  <button class="btn btn-secondary mb-4" on:click={exportToPDF}>
-    Export to PDF
-  </button>
+  {#if filterType === "approved" && displayedActionPlans.length > 0}
+    <button class="btn btn-secondary mb-4" on:click={exportToPDF}>
+      Export Approved Plans to PDF
+    </button>
+  {/if}
 
   <!-- Table for Action Plans -->
   {#if isLoading}
     <div>Loading action plans...</div>
-  {:else if actionPlans.length > 0}
+  {:else if displayedActionPlans.length > 0}
     <div class="overflow-x-auto">
       <table class="table table-zebra w-full shadow-lg rounded-lg">
         <thead>
@@ -229,24 +238,17 @@
           </tr>
         </thead>
         <tbody>
-          {#each actionPlans as plan}
+          {#each displayedActionPlans as plan}
             <tr>
               <td>{plan.actions_taken}</td>
               <td>{plan.kpi}</td>
               <td>{plan.target_output}</td>
               <td>{plan.key_person_responsible}</td>
               <td class="flex space-x-2">
-                <button
-                  class="btn btn-sm btn-success text-white"
-                  on:click={() => approveActionPlan(plan.id)}
-                  disabled={plan.is_approved}
-                >
+                <button class="btn btn-sm btn-success text-white" on:click={() => approveActionPlan(plan.id)} disabled={plan.is_approved}>
                   {plan.is_approved ? "Approved" : "Approve"}
                 </button>
-                <button
-                  class="btn btn-sm btn-error text-white"
-                  on:click={() => deleteActionPlan(plan.id)}
-                >
+                <button class="btn btn-sm btn-error text-white" on:click={() => deleteActionPlan(plan.id)}>
                   Delete
                 </button>
               </td>
@@ -259,17 +261,3 @@
     <div>No action plans found for this objective.</div>
   {/if}
 </div>
-
-<style>
-  .table {
-    border-spacing: 0;
-    border-collapse: separate;
-    width: 100%;
-  }
-  .btn {
-    padding: 8px 16px;
-    border-radius: 6px;
-    cursor: pointer;
-  }
-
-</style>
