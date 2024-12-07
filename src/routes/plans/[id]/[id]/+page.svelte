@@ -14,9 +14,11 @@
     created_at: string;
     objective_id: number;
     is_approved: boolean;
+    is_approved_vp: boolean;
+    is_approved_president: boolean;
     profile_id: string | null;
-    department_name: string | null; 
-    user_name: string | null; 
+    department_name: string | null;
+    user_name: string | null;
   }
 
   interface StrategicObjective {
@@ -38,93 +40,23 @@
   let objective: StrategicObjective | null = null;
   let strategicGoal: StrategicGoal | null = null;
   let objective_id: number | null = null;
-  let isLoading = true;
+  let isLoading = false;
 
   let adminName: string | null = null;
   let vicePresidentName: string | null = null;
   let presidentName: string | null = null;
+  let currentUserRole: string | null = null;
 
-  // Fetch data on page load
   onMount(async () => {
     const { params } = $page;
     objective_id = parseInt(params.id);
 
     if (objective_id) {
       try {
-        // Fetch all action plans with user and department details
-        const { data: plansData, error: plansError } = await supabase
-          .from("action_plans")
-          .select(`
-            *,
-            profiles (
-              first_name,
-              last_name,
-              departments (name)
-            ),
-            department_id
-          `);
-
-        if (plansError) {
-          console.error("Error fetching action plans:", plansError);
-        } else {
-          actionPlans = await Promise.all(plansData.map(async (plan: any) => ({
-            id: plan.id,
-            actions_taken: plan.actions_taken,
-            kpi: plan.kpi,
-            target_output: plan.target_output,
-            key_person_responsible: plan.key_person_responsible,
-            created_at: plan.created_at,
-            objective_id: plan.objective_id,
-            is_approved: plan.is_approved,
-            profile_id: plan.profile_id,
-            department_name:
-              plan.profiles?.departments?.name ||
-              (await fetchDepartmentName(plan.department_id)) ||
-              "Unknown",
-            user_name: plan.profiles
-              ? `${plan.profiles?.first_name || ""} ${plan.profiles?.last_name || ""}`
-              : "Unknown",
-          })));
-          displayedActionPlans = [...actionPlans];
-        }
-
-        // Fetch departments for filtering
-        const { data: departmentData, error: departmentError } = await supabase
-          .from("departments")
-          .select("id, name");
-
-        if (departmentError) {
-          console.error("Error fetching departments:", departmentError);
-        } else {
-          departments = departmentData;
-        }
-
-        // Fetch objective
-        const { data: objectiveData, error: objectiveError } = await supabase
-          .from("strategic_objectives")
-          .select("id, name, strategic_goal_id")
-          .eq("id", objective_id)
-          .single();
-
-        if (objectiveError) {
-          console.error("Error fetching objective:", objectiveError);
-        } else {
-          objective = objectiveData;
-
-          // Fetch strategic goal
-          const { data: goalData, error: goalError } = await supabase
-            .from("strategic_goals")
-            .select("id, name")
-            .eq("id", objectiveData.strategic_goal_id)
-            .single();
-
-          if (goalError) {
-            console.error("Error fetching strategic goal:", goalError);
-          } else {
-            strategicGoal = goalData;
-          }
-        }
-
+        await fetchCurrentUserRole();
+        await fetchActionPlans();
+        await fetchDepartments();
+        await fetchObjective();
         await fetchAdminName();
         await fetchVPAndPresidentNames();
       } catch (error) {
@@ -138,82 +70,104 @@
     }
   });
 
-  const fetchDepartmentName = async (departmentId: string) => {
+  const fetchCurrentUserRole = async () => {
     try {
-      const { data, error } = await supabase
-        .from("departments")
-        .select("name")
-        .eq("id", departmentId)
+      const { data: { session } } = await supabase.auth.getSession();
+
+      if (!session || !session.user) return;
+
+      const { data: profileData, error } = await supabase
+        .from("profiles")
+        .select("role")
+        .eq("id", session.user.id)
         .single();
 
       if (error) {
-        console.error("Error fetching department name:", error);
-        return null;
-      }
-      return data?.name || null;
-    } catch (error) {
-      console.error("Error fetching department name:", error);
-      return null;
-    }
-  };
-
-  const applyFilters = () => {
-    let filteredPlans = [...actionPlans];
-
-    if (selectedDepartment !== "all") {
-      filteredPlans = filteredPlans.filter(
-        (plan) => plan.department_name === selectedDepartment
-      );
-    }
-
-    if (filterType === "approved") {
-      filteredPlans = filteredPlans.filter((plan) => plan.is_approved);
-    } else if (filterType === "notApproved") {
-      filteredPlans = filteredPlans.filter((plan) => !plan.is_approved);
-    }
-
-    displayedActionPlans = filteredPlans;
-  };
-
-  const approveActionPlan = async (planId: number) => {
-    try {
-      const { data, error } = await supabase
-        .from("action_plans")
-        .update({ is_approved: true })
-        .eq("id", planId);
-
-      if (error) {
-        console.error("Error approving action plan:", error);
+        console.error("Error fetching user role:", error);
       } else {
-        const planIndex = actionPlans.findIndex((plan) => plan.id === planId);
-        actionPlans[planIndex].is_approved = true;
-        displayedActionPlans = [...actionPlans];
+        currentUserRole = profileData.role;
       }
     } catch (error) {
-      console.error("Error approving action plan:", error);
+      console.error("Error fetching current user role:", error);
     }
   };
 
-  const deleteActionPlan = async (planId: number) => {
-    try {
-      const { error } = await supabase.from("action_plans").delete().eq("id", planId);
+  const fetchActionPlans = async () => {
+    const { data: plansData, error: plansError } = await supabase
+      .from("action_plans")
+      .select(`
+        *,
+        profiles (
+          first_name,
+          last_name,
+          departments (name)
+        )
+      `);
 
-      if (error) {
-        console.error("Error deleting action plan:", error);
+    if (plansError) {
+      console.error("Error fetching action plans:", plansError);
+    } else {
+      actionPlans = plansData.map((plan: any) => ({
+        id: plan.id,
+        actions_taken: plan.actions_taken,
+        kpi: plan.kpi,
+        target_output: plan.target_output,
+        key_person_responsible: plan.key_person_responsible,
+        created_at: plan.created_at,
+        objective_id: plan.objective_id,
+        is_approved: plan.is_approved,
+        is_approved_vp: plan.is_approved_vp,
+        is_approved_president: plan.is_approved_president,
+        profile_id: plan.profile_id,
+        department_name: plan.profiles?.departments?.name || "Unknown",
+        user_name: `${plan.profiles?.first_name || ""} ${plan.profiles?.last_name || ""}`,
+      }));
+
+      applyFilters();
+    }
+  };
+
+  const fetchDepartments = async () => {
+    const { data: departmentData, error: departmentError } = await supabase
+      .from("departments")
+      .select("id, name");
+
+    if (departmentError) {
+      console.error("Error fetching departments:", departmentError);
+    } else {
+      departments = departmentData;
+    }
+  };
+
+  const fetchObjective = async () => {
+    const { data: objectiveData, error: objectiveError } = await supabase
+      .from("strategic_objectives")
+      .select("id, name, strategic_goal_id")
+      .eq("id", objective_id)
+      .single();
+
+    if (objectiveError) {
+      console.error("Error fetching objective:", objectiveError);
+    } else {
+      objective = objectiveData;
+
+      const { data: goalData, error: goalError } = await supabase
+        .from("strategic_goals")
+        .select("id, name")
+        .eq("id", objectiveData.strategic_goal_id)
+        .single();
+
+      if (goalError) {
+        console.error("Error fetching strategic goal:", goalError);
       } else {
-        actionPlans = actionPlans.filter((plan) => plan.id !== planId);
-        displayedActionPlans = [...actionPlans];
+        strategicGoal = goalData;
       }
-    } catch (error) {
-      console.error("Error deleting action plan:", error);
     }
   };
 
   const fetchAdminName = async () => {
     try {
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
+      const { data: { session } } = await supabase.auth.getSession();
 
       if (!session || !session.user) return;
 
@@ -255,13 +209,110 @@
     }
   };
 
+  const applyFilters = () => {
+    let filteredPlans = [...actionPlans];
+
+    if (currentUserRole === "vice_president") {
+      filteredPlans = filteredPlans.filter((plan) => plan.is_approved);
+    }
+
+    if (currentUserRole === "president") {
+      filteredPlans = filteredPlans.filter(
+        (plan) => plan.is_approved && plan.is_approved_vp
+      );
+    }
+
+    if (selectedDepartment !== "all") {
+      filteredPlans = filteredPlans.filter(
+        (plan) => plan.department_name === selectedDepartment
+      );
+    }
+
+    if (filterType === "approved") {
+      filteredPlans = filteredPlans.filter((plan) => plan.is_approved);
+    } else if (filterType === "notApproved") {
+      filteredPlans = filteredPlans.filter((plan) => !plan.is_approved);
+    }
+
+    displayedActionPlans = filteredPlans;
+  };
+
+  const deleteActionPlan = async (planId: number) => {
+    const { error } = await supabase
+      .from("action_plans")
+      .delete()
+      .eq("id", planId);
+
+    if (error) {
+      console.error("Error deleting action plan:", error);
+    } else {
+      await fetchActionPlans();
+    }
+  };
+
+  const approveActionPlan = async (planId: number) => {
+  let updateField = {};
+  isLoading = true;
+
+  // Check the role and set the appropriate field
+  if (currentUserRole === "admin") {
+    updateField = { is_approved: true }; // Admin approves the plan
+  } else if (currentUserRole === "vice_president") {
+    updateField = { is_approved_vp: true }; // VP approves the plan
+  } else if (currentUserRole === "president") {
+    updateField = { is_approved_president: true }; // President approves the plan
+  } else {
+    isLoading = false;
+    return; // No action if the user does not have a valid role
+  }
+
+  try {
+    // Update the action plan approval status
+    const { data, error } = await supabase
+      .from("action_plans")
+      .update(updateField)
+      .eq("id", planId)
+      .select(); // Fetch the updated action plan data
+
+    if (error) {
+      console.error("Error approving action plan:", error);
+      return;
+    }
+
+    // Only add to plan_monitoring if the president approves
+    if (currentUserRole === "president" && data && data.length > 0) {
+      const actionPlan = data[0];
+
+      const { error: monitoringError } = await supabase
+        .from("plan_monitoring")
+        .insert({
+          action_plan_id: actionPlan.id,
+          profile_id: actionPlan.profile_id, // Assuming this field links to the user
+          department_id: actionPlan.department_id, // Ensure the department_id is available
+        });
+
+      if (monitoringError) {
+        console.error("Error inserting into plan_monitoring:", monitoringError);
+      }
+    }
+
+    // Refresh the action plans list
+    await fetchActionPlans();
+  } catch (error) {
+    console.error("Unexpected error while approving action plan:", error);
+  } finally {
+    isLoading = false;
+  }
+};
+
+
   const exportToPDF = () => {
     const userName = actionPlans[0]?.user_name || "Unknown";
     const departmentName = actionPlans[0]?.department_name || "Unknown";
 
     const doc = new jsPDF("landscape");
     const title = `${departmentName} Action Plans for Objective: ${objective?.name || "N/A"}`;
-    const goalName = strategicGoal  
+    const goalName = strategicGoal
       ? `Strategic Goal: ${strategicGoal.name}`
       : "No Strategic Goal Assigned";
 
@@ -270,18 +321,20 @@
     doc.text(goalName, 14, 25);
 
     const columns = [
+      "User Name",
       "Actions Taken",
       "KPI",
       "Target Output",
       "Key Person Responsible",
-      "Approved",
       "Department",
     ];
     const rows = displayedActionPlans.map((plan) => [
+      plan.user_name || "Unknown",
       plan.actions_taken,
       plan.kpi,
       plan.target_output,
       plan.key_person_responsible,
+      plan.department_name || "Unknown",
     ]);
 
     autoTable(doc, {
@@ -296,23 +349,31 @@
     const pageHeight = doc.internal.pageSize.height;
     const signatureStartY = pageHeight - 30;
 
-    // User Name
+    // User Signature
     doc.text(`${userName} (sgnd)`, 14, signatureStartY - 5);
     doc.text("_________________________", 14, signatureStartY);
     doc.text(`${departmentName} Department Head`, 14, signatureStartY + 5);
 
-    // Admin
+    // Corporate Planning Officer
     doc.text(`${adminName || "N/A"} (sgnd)`, 100, signatureStartY - 5);
     doc.text("_________________________", 100, signatureStartY);
     doc.text("Corporate Planning Officer", 100, signatureStartY + 5);
 
     // Vice President
-    doc.text(`${vicePresidentName || "N/A"}`, 180, signatureStartY - 5);
+    if (displayedActionPlans.some((plan) => plan.is_approved_vp)) {
+      doc.text(`${vicePresidentName || "N/A"} (sgnd)`, 180, signatureStartY - 5);
+    } else {
+      doc.text(`${vicePresidentName || "N/A"}`, 180, signatureStartY - 5);
+    }
     doc.text("_________________________", 180, signatureStartY);
     doc.text("Vice President", 180, signatureStartY + 5);
 
     // President
-    doc.text(`${presidentName || "N/A"}`, 260, signatureStartY - 5);
+    if (displayedActionPlans.some((plan) => plan.is_approved_president)) {
+      doc.text(`${presidentName || "N/A"} (sgnd)`, 260, signatureStartY - 5);
+    } else {
+      doc.text(`${presidentName || "N/A"}`, 260, signatureStartY - 5);
+    }
     doc.text("_________________________", 260, signatureStartY);
     doc.text("President", 260, signatureStartY + 5);
 
@@ -348,9 +409,9 @@
   </div>
 
   <!-- Export to PDF -->
-  {#if filterType === "approved" && displayedActionPlans.length > 0}
+  {#if displayedActionPlans.length > 0}
     <button class="btn btn-secondary mb-4" on:click={exportToPDF}>
-      Export Approved Plans to PDF
+      Export to PDF
     </button>
   {/if}
 
@@ -379,8 +440,31 @@
               <td>{plan.target_output}</td>
               <td>{plan.key_person_responsible}</td>
               <td class="flex space-x-2">
-                <button class="btn btn-sm btn-success text-white" on:click={() => approveActionPlan(plan.id)} disabled={plan.is_approved}>
-                  {plan.is_approved ? "Approved" : "Approve"}
+                <button
+                  class="btn btn-sm btn-success text-white"
+                  on:click={() => approveActionPlan(plan.id)}
+                  disabled={
+                    isLoading || // Disable while loading
+                    (currentUserRole === "admin" && plan.is_approved) || 
+                    (currentUserRole === "vice_president" && (!plan.is_approved || plan.is_approved_vp)) || 
+                    (currentUserRole === "president" && (!plan.is_approved_vp || plan.is_approved_president))
+                  }
+                >
+                  {isLoading 
+                    ? "Processing..." 
+                    : currentUserRole === "admin"
+                    ? plan.is_approved
+                      ? "Admin Approved"
+                      : "Approve as Admin"
+                    : currentUserRole === "vice_president"
+                    ? plan.is_approved_vp
+                      ? "VP Approved"
+                      : "Approve as VP"
+                    : currentUserRole === "president"
+                    ? plan.is_approved_president
+                      ? "President Approved"
+                      : "Approve as President"
+                    : "Approve"}
                 </button>
                 <button class="btn btn-sm btn-error text-white" on:click={() => deleteActionPlan(plan.id)}>
                   Delete

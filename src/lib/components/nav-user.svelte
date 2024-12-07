@@ -13,7 +13,7 @@
   import LogOut from "lucide-svelte/icons/log-out";
   import { goto } from "$app/navigation";
   import Sparkles from "lucide-svelte/icons/sparkles";
-
+  
   export let user: User; // Receive user as a prop
 
   const sidebar = useSidebar();
