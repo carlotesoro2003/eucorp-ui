@@ -161,7 +161,7 @@ onMount(() => {
 
 <!-- Render loading spinner during session validation -->
 {#if loading}
-  <div class="flex items-center justify-center min-h-screen bg-base-300">
+  <div class="flex items-center justify-center min-h-screen ">
     <span class="loading loading-spinner loading-lg"></span>
   </div>
 
@@ -215,7 +215,7 @@ onMount(() => {
   <Login />
 
 {:else}
-  <div class="flex items-center justify-center min-h-screen bg-base-300">
+  <div class="flex items-center justify-center min-h-screen ">
     <div class="text-center">
       <h1 class="text-4xl font-bold  mb-4">Pending for System Access</h1>
       <p>Your account is under review. Please wait for verification.</p>
