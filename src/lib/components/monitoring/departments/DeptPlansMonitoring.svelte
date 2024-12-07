@@ -45,7 +45,8 @@
   };
 
   // Fetch action plans and related monitoring data based on department
-const fetchActionPlans = async () => {
+
+  const fetchActionPlans = async () => {
   try {
     // Get the logged-in user's profile and department
     const { data: userProfile, error: profileError } = await supabase
@@ -61,7 +62,7 @@ const fetchActionPlans = async () => {
 
     const deptId = userProfile.department_id;
 
-    // Fetch action plans for users in the same department
+    // Fetch action plans for users in the same department where is_approved is true
     const { data: profileIds, error: profileIdsError } = await supabase
       .from("profiles")
       .select("id")
@@ -84,9 +85,11 @@ const fetchActionPlans = async () => {
         strategic_objectives (
           name,
           strategic_goals (name)
-        )
+        ),
+        is_approved
       `)
-      .in("profile_id", profileIdList); // Filter action plans by profiles in the same department
+      .in("profile_id", profileIdList)
+      .eq("is_approved", true); // Filter only approved action plans
 
     if (error) {
       console.error("Error fetching action plans:", error);
@@ -127,7 +130,8 @@ const fetchActionPlans = async () => {
   } finally {
     isLoadingPage = false;
   }
-};
+  };
+
 
   // Fetch monitoring data for action plans
   const fetchPlanMonitoringData = async (planIds: number[]) => {
@@ -241,14 +245,14 @@ const fetchActionPlans = async () => {
 </script>
 
 <!-- HTML Structure -->
-<div class="min-h-screen p-8 bg-base-300">
+<div class="min-h-screen p-8">
   <h1 class="text-3xl font-bold mb-6">Plans Monitoring</h1>
 
   {#if isLoadingPage}
     <div class="text-center text-xl">
       <span class="loading loading-spinner loading-md"></span>
     </div>
-  {:else if $actionPlans.length > 0}
+  {:else if $actionPlans.length > 0 }
     <div class="overflow-x-auto shadow-lg rounded-lg">
       <table class="table-auto w-full text-left text-sm border-collapse">
         <thead class="uppercase text-xs">

@@ -35,7 +35,7 @@
       },
       {
         title: "User Management",
-        url: "#",
+        url: "/users",
         icon: Bot,
         items: [
           { title: "Users", url: "/users" },
@@ -47,7 +47,7 @@
       },
       {
         title: "Planning",
-        url: "#",
+        url: "/plans",
         icon: ChartPie,
         items: [
           { title: "Strategic Planning", url: "/plans" },
@@ -57,7 +57,7 @@
       },
       {
         title: "Monitoring",
-        url: "#",
+        url: "/monitoring/mid-year",
         icon: ChartArea,
         items: [
           { title: "Mid-Year Monitoring ", url: "/monitoring/mid-year" },
@@ -89,7 +89,7 @@
       },
       {
         title: "Planning",
-        url: "#",
+        url: "/plans/operationalPlans",
         icon: ChartPie,
         items: [
           { title: "Operational Planning", url: "/plans/operationalPlans" },
@@ -99,7 +99,7 @@
       },
       {
         title: "Monitoring",
-        url: "#",
+        url: "/monitoring/mid-year",
         icon: ChartPie,
         items: [
           { title: "Mid-Year Monitoring ", url: "/monitoring/mid-year" },

@@ -9,7 +9,8 @@
     target_output: string;
     key_person_responsible: string;
     objective_id: number;
-    profile_id: string; // Profile ID added
+    profile_id: string;
+    department_id: string;
   }
 
   interface StrategicObjective {
@@ -29,7 +30,8 @@
       target_output: "",
       key_person_responsible: "",
       objective_id: 0,
-      profile_id: "", // Default value
+      profile_id: "",
+      department_id: "",
     },
   ];
 
@@ -40,6 +42,7 @@
     key_person_responsible: "",
     objective_id: 0,
     profile_id: "", // Default value
+    department_id: "", // Add department_id property
   };
 
   let strategicObjective: StrategicObjective | null = null;
@@ -68,15 +71,33 @@
     }
   });
 
-  // Fetch profile_id for the logged-in user
   const fetchUserProfileId = async () => {
     const { data: { user } } = await supabase.auth.getUser();
     if (user) {
-      profile_id = user.id; // Profile ID is the user id
+        const { data: profileData, error } = await supabase
+            .from("profiles")
+            .select("id, department_id")
+            .eq("id", user.id)
+            .single();
+
+        if (error || !profileData) {
+            console.error("Error fetching profile details:", error);
+            showAlert("Failed to fetch user profile details.", "error");
+            return;
+        }
+
+        profile_id = profileData.id;
+        newActionPlan.profile_id = profile_id; // Assign to newActionPlan
+        actionPlans[0].profile_id = profile_id; // Assign to initial action plan
+
+        // Assign the department_id to newActionPlan and initial action plan
+        actionPlans.forEach(plan => plan.department_id = profileData.department_id);
+        newActionPlan.department_id = profileData.department_id;
     } else {
-      showAlert("User not logged in.", "error");
+        showAlert("User not logged in.", "error");
     }
-  };
+};
+
 
   const fetchStrategicObjectiveAndGoal = async (objective_id: number) => {
     try {
@@ -131,37 +152,39 @@
 
   const submitActionPlans = async () => {
     if (actionPlans.length === 0) {
-      showAlert("Please add at least one action plan.", "warning");
-      return;
+        showAlert("Please add at least one action plan.", "warning");
+        return;
     }
 
     const plansToSubmit = actionPlans.map((plan) => ({
-      ...plan,
-      profile_id: profile_id || newActionPlan.profile_id, // Include profile_id
-      objective_id: plan.objective_id || newActionPlan.objective_id,
+        ...plan,
+        profile_id: profile_id || newActionPlan.profile_id, // Include profile_id
+        department_id: plan.department_id || newActionPlan.department_id, // Include department_id
+        objective_id: plan.objective_id || newActionPlan.objective_id,
     }));
 
     try {
-      isSubmitting = true;
-      const { data, error } = await supabase
-        .from("action_plans")
-        .insert(plansToSubmit);
+        isSubmitting = true;
+        const { data, error } = await supabase
+            .from("action_plans")
+            .insert(plansToSubmit);
 
-      if (error) {
-        console.error("Error submitting action plans:", error.message);
-        showAlert("Failed to submit action plans.", "error");
-      } else {
-        console.log("Action plans submitted successfully:", data);
-        showAlert("Action plans submitted successfully.", "success");
-        actionPlans = []; // Clear the form after submission
-      }
+        if (error) {
+            console.error("Error submitting action plans:", error.message);
+            showAlert("Failed to submit action plans.", "error");
+        } else {
+            console.log("Action plans submitted successfully:", data);
+            showAlert("Action plans submitted successfully.", "success");
+            actionPlans = []; // Clear the form after submission
+        }
     } catch (err) {
-      console.error("Error submitting action plans:", err);
-      showAlert("An error occurred while submitting action plans.", "error");
+        console.error("Error submitting action plans:", err);
+        showAlert("An error occurred while submitting action plans.", "error");
     } finally {
-      isSubmitting = false;
+        isSubmitting = false;
     }
-  };
+};
+
 
   const showAlert = (message: string, type: string) => {
     alertMessage = message;
@@ -195,7 +218,7 @@
   {#if alertMessage}
     <div class="alert alert-{alertType} shadow-lg mb-4">
       <span>{alertMessage}</span>
-    </div>
+    </div>  
   {/if}
 
   <!-- Table for Action Plans -->
