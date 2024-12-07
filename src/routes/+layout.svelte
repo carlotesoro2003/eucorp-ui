@@ -167,7 +167,7 @@ onMount(() => {
 
 {:else if user.session && user.isVerified}
 <Sidebar.Provider>
-  <AppSidebar />
+  <AppSidebar userRole={user.userRole}/>
   <Sidebar.Inset>
     <!-- Header and Content -->
     <header

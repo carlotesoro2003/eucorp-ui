@@ -13,8 +13,8 @@
     key_person_responsible: string;
     created_at: string;
     objective_id: number;
-    is_approved: boolean; // Added is_approved field
-    profile_id: string; // Added profile_id field from action_plans
+    is_approved: boolean; 
+    profile_id: string; 
   }
 
   interface StrategicObjective {
@@ -183,7 +183,7 @@
       startY: 35,
       theme: "grid",
       styles: { fontSize: 10 },
-      headStyles: { fillColor: [41, 128, 185] }, // Blue color for header
+      headStyles: { fillColor: [41, 128, 185] }, 
     });
 
     doc.save("ActionPlans.pdf");
@@ -191,7 +191,7 @@
 </script>
 
 <!-- HTML Structure -->
-<div class="min-h-screen bg-base-300 p-8">
+<div class="min-h-screen p-8">
   <h1 class="text-2xl font-bold mb-4">Action Plans</h1>
 
   <!-- Objective and Goal Information -->
