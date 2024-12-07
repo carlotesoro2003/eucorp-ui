@@ -13,6 +13,7 @@
     key_persons: string;
     budget: number;
     profile_id: string;
+    is_approved: boolean; 
   }
 
   interface Classification {
@@ -146,13 +147,13 @@
 
   // Helper functions to retrieve names from IDs with fallbacks
   const getLikelihoodRatingName = (id: number | null) =>
-    likelihoodRating.find((item) => item.id === id)?.name || "Not Available";
+    likelihoodRating.find((item) => item.id === id)?.symbol || "Not Available";
 
   const getSeverityName = (id: number | null) =>
-    severity.find((item) => item.id === id)?.name || "Not Available";
+    severity.find((item) => item.id === id)?.value || "Not Available";
 
   const getRiskControlRatingName = (id: number | null) =>
-    riskControlRating.find((item) => item.id === id)?.name || "Not Available";
+    riskControlRating.find((item) => item.id === id)?.symbol || "Not Available";
 
   const getRiskMonitoringRatingStatus = (id: number | null) =>
     riskMonitoringRating.find((item) => item.id === id)?.status || "Not Available";
@@ -222,6 +223,81 @@
     }
   };
 
+  // Function to approve a risk
+  const approveRisk = async (riskId: string) => {
+  try {
+    // Fetch the risk details
+    const { data: risk, error: fetchError } = await supabase
+      .from("risks")
+      .select("id, rrn, risk_statement, profile_id")
+      .eq("id", riskId)
+      .single();
+
+    if (fetchError || !risk) {
+      throw new Error("Failed to fetch risk details.");
+    }
+
+    // Fetch the department_id from the profile
+    const { data: profile, error: profileError } = await supabase
+      .from("profiles")
+      .select("department_id")
+      .eq("id", risk.profile_id)
+      .single();
+
+    if (profileError || !profile) {
+      throw new Error("Failed to fetch profile details.");
+    }
+
+    const departmentId = profile.department_id;
+
+    // Fetch the related risk assessment details
+    const { data: riskAssessment, error: assessmentError } = await supabase
+      .from("risk_assessment")
+      .select("*")
+      .eq("risk_id", riskId);
+
+    if (assessmentError || !riskAssessment || riskAssessment.length === 0) {
+      throw new Error("Failed to fetch risk assessment details.");
+    }
+
+    // Insert into the risk_monitoring table
+    const { error: insertError } = await supabase.from("risk_monitoring").insert({
+      risk_id: riskId,
+      department_id: departmentId,
+      likelihood_rating: riskAssessment[0].lr, // Likelihood Rating
+      severity: riskAssessment[0].s, // Severity
+      control_rating: riskAssessment[0].rcr, // Control Rating
+      monitoring_rating: riskAssessment[0].rmr, // Monitoring Rating
+    });
+
+    if (insertError) {
+      throw new Error("Failed to insert into risk_monitoring table.");
+    }
+
+    // Update the risk as approved
+    const { error: updateError } = await supabase
+      .from("risks")
+      .update({ is_approved: true })
+      .eq("id", riskId);
+
+    if (updateError) {
+      throw new Error("Failed to update risk approval status.");
+    }
+
+    // Update local risks state
+    risks = risks.map((r) =>
+      r.id === riskId ? { ...r, is_approved: true } : r
+    );
+
+    successMessage = `Risk approved successfully with risk assessment included!`;
+  } catch (error) {
+    console.error("Error approving risk:", error);
+    errorMessage = "Failed to approve risk.";
+  }
+};
+
+  
+
   // Fetch all data on mount
   onMount(() => {
     Promise.all([
@@ -260,7 +336,7 @@
     {/if}
 
     <div class="overflow-x-auto">
-      <table class="table w-full table-zebra">
+      <table class="table w-full">
         <thead>
           <tr>
             <th>RRN</th>
@@ -305,6 +381,15 @@
                   {/if}
                 {/if}
               </td> 
+              <td>
+                <button
+                class="btn btn-sm btn-success"
+                on:click={() => approveRisk(risk.id)}
+                disabled={risk.is_approved}
+                >
+                {risk.is_approved ? "Approved" : "Approve Risk"}
+              </button>
+              </td>
               <td>
                 <button
                 class="btn btn-error btn-sm"
