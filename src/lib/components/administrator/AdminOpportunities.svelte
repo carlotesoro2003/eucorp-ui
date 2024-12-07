@@ -12,288 +12,367 @@
     key_persons: string;
     target_output: string;
     budget: number;
-    profile_id: string;
     is_approved: boolean;
-    department_name: string;
+    is_approved_vp: boolean;
+    is_approved_president: boolean;
+    profile_id: string;
+    department_name: string | null;
+    user_name: string | null;
   }
 
   let opportunities: Opportunity[] = [];
+  let displayedOpportunities: Opportunity[] = [];
+  let departments: { id: string; name: string }[] = [];
+  let selectedDepartment: string | "all" = "all";
+
   let isLoading = false;
   let isSaving = false;
   let isDeleting = false;
   let isApproving = false;
-  let profileId: string | null = null;
-  let errorMessage: string | null = null;
-  let editingOpportunity: Opportunity | null = null;
 
-  const fetchUserProfile = async (): Promise<void> => {
+  let userRole: string | null = null;
+  let adminName: string | null = null;
+  let vicePresidentName: string | null = null;
+  let presidentName: string | null = null;
+
+  onMount(async () => {
+    await fetchCurrentUserRole();
+    await fetchOpportunities();
+    await fetchDepartments();
+    await fetchVPAndPresidentNames();
+  });
+
+  const fetchCurrentUserRole = async () => {
     const {
       data: { session },
-      error: sessionError,
     } = await supabase.auth.getSession();
 
-    if (sessionError) {
-      console.error("Error fetching session:", sessionError);
-      errorMessage = "Session could not be retrieved.";
-      setTimeout(() => (errorMessage = null), 2000);
+    if (!session || !session.user) return;
+
+    const { data: profile, error } = await supabase
+      .from("profiles")
+      .select("role, first_name, last_name")
+      .eq("id", session.user.id)
+      .single();
+
+    if (error) {
+      console.error("Error fetching user role:", error);
       return;
     }
 
-    if (session) {
-      const { data, error } = await supabase
-        .from("profiles")
-        .select("id")
-        .eq("id", session.user.id)
-        .single();
-      if (error) {
-        console.error("Error fetching profile:", error);
-        errorMessage = "Failed to fetch profile information.";
-        setTimeout(() => (errorMessage = null), 2000);
-      } else {
-        profileId = data.id;
-        fetchOpportunities();
-      }
+    userRole = profile.role;
+
+    if (userRole === "admin") {
+      adminName = `${profile.first_name} ${profile.last_name}`;
     }
   };
 
   const fetchOpportunities = async () => {
-    if (!profileId) return;
-
     isLoading = true;
-    const { data, error } = await supabase.from("opportunities").select(`
-                *,
-                profiles (
-                    department_id,
-                    departments (name)
-                )
-            `);
+
+    const { data, error } = await supabase
+      .from("opportunities")
+      .select(`
+        *,
+        profiles (
+          first_name,
+          last_name,
+          departments (name)
+        )
+      `);
 
     if (error) {
       console.error("Error fetching opportunities:", error);
-      errorMessage = "Failed to load opportunities.";
-      setTimeout(() => (errorMessage = null), 2000);
-    } else {
-      opportunities = data.map((opportunity: any) => ({
-        ...opportunity,
-        department_name: opportunity.profiles?.departments?.name || "N/A",
-      }));
+      return;
     }
+
+    opportunities = data.map((opportunity: any) => ({
+      ...opportunity,
+      department_name: opportunity.profiles?.departments?.name || "N/A",
+      user_name: `${opportunity.profiles?.first_name || ""} ${opportunity.profiles?.last_name || ""}`,
+    }));
+
+    applyFilters();
     isLoading = false;
   };
 
-  const editOpportunity = (opportunity: Opportunity) => {
-    editingOpportunity = { ...opportunity };
-  };
-
-  const saveEditedOpportunity = async () => {
-    if (!editingOpportunity) return;
-
-    isSaving = true;
-    const { error } = await supabase
-      .from("opportunities")
-      .update({
-        opt_statement: editingOpportunity.opt_statement,
-        planned_actions: editingOpportunity.planned_actions,
-        kpi: editingOpportunity.kpi,
-        key_persons: editingOpportunity.key_persons,
-        target_output: editingOpportunity.target_output,
-        budget: editingOpportunity.budget,
-      })
-      .eq("id", editingOpportunity.id);
+  const fetchDepartments = async () => {
+    const { data, error } = await supabase
+      .from("departments")
+      .select("id, name");
 
     if (error) {
-      console.error("Error updating opportunity:", error);
-      errorMessage = "Failed to update opportunity.";
-      setTimeout(() => (errorMessage = null), 2000);
-    } else {
-      fetchOpportunities();
-      editingOpportunity = null;
+      console.error("Error fetching departments:", error);
+      return;
     }
-    isSaving = false;
+
+    departments = data;
+  };
+
+  const fetchVPAndPresidentNames = async () => {
+    const { data, error } = await supabase
+      .from("profiles")
+      .select("role, first_name, last_name")
+      .in("role", ["vice_president", "president"]);
+
+    if (error) {
+      console.error("Error fetching VP and President names:", error);
+      return;
+    }
+
+    const vp = data.find((profile) => profile.role === "vice_president");
+    const president = data.find((profile) => profile.role === "president");
+
+    vicePresidentName = vp ? `${vp.first_name} ${vp.last_name}` : "N/A";
+    presidentName = president ? `${president.first_name} ${president.last_name}` : "N/A";
+  };
+
+  const applyFilters = () => {
+    let filteredOpportunities = [...opportunities];
+
+    if (selectedDepartment !== "all") {
+      filteredOpportunities = filteredOpportunities.filter(
+        (opportunity) => opportunity.department_name === selectedDepartment
+      );
+    }
+
+    displayedOpportunities = filteredOpportunities;
+  };
+
+  const editOpportunity = (opportunity: Opportunity) => {
+    // Logic to open and populate edit modal (not included)
+    console.log("Editing Opportunity:", opportunity);
   };
 
   const deleteOpportunity = async (id: number) => {
     isDeleting = true;
-    const { error } = await supabase
-      .from("opportunities")
-      .delete()
-      .eq("id", id);
+
+    const { error } = await supabase.from("opportunities").delete().eq("id", id);
 
     if (error) {
       console.error("Error deleting opportunity:", error);
-      errorMessage = "Failed to delete opportunity.";
-      setTimeout(() => (errorMessage = null), 2000);
     } else {
-      fetchOpportunities();
+      await fetchOpportunities();
     }
+
     isDeleting = false;
   };
 
-  const approveOpportunity = async (opportunity: Opportunity) => {
+  const approveOpportunity = async (id: number) => {
     isApproving = true;
 
-    try {
-      // Update the is_approved status in the opportunities table
-      const { error: updateError } = await supabase
-        .from("opportunities")
-        .update({ is_approved: true })
-        .eq("id", opportunity.id);
-
-      if (updateError) {
-        console.error("Error updating opportunity:", updateError);
-        errorMessage = "Failed to approve opportunity.";
-        setTimeout(() => (errorMessage = null), 2000);
-        isApproving = false;
-        return;
-      }
-
-      // Fetch department_id from profiles table
-      const { data: profile, error: profileError } = await supabase
-        .from("profiles")
-        .select("department_id")
-        .eq("id", opportunity.profile_id)
-        .single();
-
-      if (profileError || !profile) {
-        console.error("Error fetching department_id:", profileError);
-        errorMessage = "Failed to fetch department information.";
-        setTimeout(() => (errorMessage = null), 2000);
-        isApproving = false;
-        return;
-      }
-
-      // Insert into opt_monitoring table with department_id
-      const { error: insertError } = await supabase
-        .from("opt_monitoring")
-        .insert({
-          opt_id: opportunity.id,
-          profile_id: opportunity.profile_id,
-          department_id: profile.department_id, // Include department_id
-          is_accomplished: false,
-        });
-
-      if (insertError) {
-        console.error("Error inserting into opt_monitoring:", insertError);
-        errorMessage = "Failed to add opportunity to monitoring.";
-        setTimeout(() => (errorMessage = null), 2000);
-      } else {
-        fetchOpportunities();
-      }
-    } catch (error) {
-      console.error("Unexpected error:", error);
-      errorMessage = "An unexpected error occurred.";
-      setTimeout(() => (errorMessage = null), 2000);
-    } finally {
-      isApproving = false;
+    let updateField = {};
+    if (userRole === "admin") {
+      updateField = { is_approved: true };
+    } else if (userRole === "vice_president") {
+      updateField = { is_approved_vp: true };
+    } else if (userRole === "president") {
+      updateField = { is_approved_president: true };
     }
+
+    const { data, error } = await supabase
+      .from("opportunities")
+      .update(updateField)
+      .eq("id", id)
+      .select();
+
+    if (error) {
+      console.error("Error approving opportunity:", error);
+    }
+
+    if (userRole === "president" && data && data.length > 0) {
+      const opportunity = data[0];
+      const { error: monitoringError } = await supabase.from("opt_monitoring").insert({
+        opt_id: opportunity.id,
+        profile_id: opportunity.profile_id,
+        department_id: opportunity.department_id,
+      });
+      if (monitoringError) {
+        console.error("Error adding to opportunity monitoring:", monitoringError);
+      }
+    }
+
+    await fetchOpportunities();
+    isApproving = false;
   };
 
   const exportToPDF = () => {
-    // Initialize jsPDF with landscape orientation
-    const doc = new jsPDF("landscape");
-    const tableColumnHeaders = [
-      "Opportunity Statement",
-      "Planned Actions",
-      "KPI",
-      "Key Persons",
-      "Target Output",
-      "Budget",
-      "Department",
-    ];
-    const tableRows = opportunities.map((opportunity) => [
-      opportunity.opt_statement,
-      opportunity.planned_actions,
-      opportunity.kpi,
-      opportunity.key_persons,
-      opportunity.target_output,
-      opportunity.budget.toString(),
-      opportunity.department_name,
-    ]);
+  const doc = new jsPDF("landscape");
+  const title = "Opportunities Report";
+  const columns = [
+    "User Name",
+    "Opportunity Statement",
+    "Planned Actions",
+    "KPI",
+    "Key Persons",
+    "Target Output",
+    "Budget",
+    "Department",
+  ];
+  const rows = displayedOpportunities.map((opportunity) => [
+    opportunity.user_name || "Unknown",
+    opportunity.opt_statement,
+    opportunity.planned_actions,
+    opportunity.kpi,
+    opportunity.key_persons,
+    opportunity.target_output,
+    opportunity.budget.toFixed(2), // Ensure budget is properly formatted
+    opportunity.department_name || "Unknown",
+  ]);
 
-    // Set the title and add it to the PDF
-    doc.text("Opportunities Report", 14, 10);
+  // Add the title
+  doc.setFontSize(14);
+  doc.text(title, 14, 15);
 
-    // Use autoTable to add the table in landscape format
-    autoTable(doc, {
-      head: [tableColumnHeaders],
-      body: tableRows,
-      startY: 20, // Start table below the title
-    });
-
-    // Save the PDF file
-    doc.save("Opportunities_Report.pdf");
-  };
-
-  onMount(() => {
-    fetchUserProfile();
+  // Add the table
+  autoTable(doc, {
+    head: [columns],
+    body: rows,
+    startY: 25, // Ensure proper spacing
+    theme: "grid",
+    styles: { fontSize: 10 },
+    headStyles: { fillColor: [41, 128, 185] }, // Custom color for table header
   });
+
+  // Prepare space for signatures
+  const pageHeight = doc.internal.pageSize.height;
+  const signatureStartY = pageHeight - 30;
+
+  // Ensure the first opportunity exists to extract user and department details
+  const firstOpportunity = displayedOpportunities[0];
+  const userName = firstOpportunity?.user_name || "Unknown";
+  const departmentName = firstOpportunity?.department_name || "Unknown";
+
+  // User Signature
+  doc.text(`${userName} (sgnd)`, 14, signatureStartY - 5);
+  doc.text("_________________________", 14, signatureStartY);
+  doc.text(`${departmentName} Department Head`, 14, signatureStartY + 5);
+
+  // Corporate Planning Officer
+  doc.text(`${adminName || "N/A"} (sgnd)`, 100, signatureStartY - 5);
+  doc.text("_________________________", 100, signatureStartY);
+  doc.text("Corporate Planning Officer", 100, signatureStartY + 5);
+
+  // Vice President
+  const vpSigned = displayedOpportunities.some((opportunity) => opportunity.is_approved_vp);
+  doc.text(
+    vpSigned ? `${vicePresidentName || "N/A"} (sgnd)` : `${vicePresidentName || "N/A"}`,
+    180,
+    signatureStartY - 5
+  );
+  doc.text("_________________________", 180, signatureStartY);
+  doc.text("Vice President", 180, signatureStartY + 5);
+
+  // President
+  const presidentSigned = displayedOpportunities.some(
+    (opportunity) => opportunity.is_approved_president
+  );
+  doc.text(
+    presidentSigned ? `${presidentName || "N/A"} (sgnd)` : `${presidentName || "N/A"}`,
+    260,
+    signatureStartY - 5
+  );
+  doc.text("_________________________", 260, signatureStartY);
+  doc.text("President", 260, signatureStartY + 5);
+
+  // Save the PDF file
+  doc.save("Opportunities_Report.pdf");
+};
+
 </script>
 
 <div class="container mx-auto p-6">
-  <h2 class="text-2xl font-bold mb-6">My Opportunities</h2>
+  <h2 class="text-2xl font-bold mb-6">Opportunities</h2>
 
-  <button class="btn btn-accent my-5" on:click={exportToPDF}>
-    Export to PDF
-  </button>
-
-  {#if errorMessage}
-    <div class="text-red-500 mb-4">{errorMessage}</div>
-  {/if}
+  <div class="flex gap-4 mb-4">
+    <select
+      class="select select-bordered"
+      bind:value={selectedDepartment}
+      on:change={applyFilters}
+    >
+      <option value="all">All Departments</option>
+      {#each departments as department}
+        <option value={department.name}>{department.name}</option>
+      {/each}
+    </select>
+    <button class="btn btn-secondary" on:click={exportToPDF}>
+      Export to PDF
+    </button>
+  </div>
 
   {#if isLoading}
-    <span class="loading loading-spinner loading-sm">Loading...</span>
-  {:else if opportunities.length === 0}
-    <div class="text-center text-gray-500">No opportunities found.</div>
+    <div>Loading opportunities...</div>
+  {:else if displayedOpportunities.length === 0}
+    <div>No opportunities available.</div>
   {:else}
-    <div class="overflow-x-auto">
-      <table class="table table-zebra w-full">
-        <thead>
-          <tr class="uppercase text-sm">
-            <th class="px-4 py-2 text-left">Opportunity Statement</th>
-            <th class="px-4 py-2 text-left">Planned Actions</th>
-            <th class="px-4 py-2 text-left">KPI</th>
-            <th class="px-4 py-2 text-left">Key Persons</th>
-            <th class="px-4 py-2 text-left">Target Output</th>
-            <th class="px-4 py-2 text-left">Budget</th>
-            <th class="px-4 py-2 text-left">Department</th>
-            <th class="px-4 py-2 text-left">Actions</th>
+    <table class="table w-full">
+      <thead>
+        <tr>
+          <th>Opportunity Statement</th>
+          <th>Planned Actions</th>
+          <th>KPI</th>
+          <th>Key Persons</th>
+          <th>Target Output</th>
+          <th>Budget</th>
+          <th>Department</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {#each displayedOpportunities as opportunity}
+          <tr>
+            <td>{opportunity.opt_statement}</td>
+            <td>{opportunity.planned_actions}</td>
+            <td>{opportunity.kpi}</td>
+            <td>{opportunity.key_persons}</td>
+            <td>{opportunity.target_output}</td>
+            <td>{opportunity.budget}</td>
+            <td>{opportunity.department_name}</td>
+            <td class="flex gap-2">
+              <button
+                class="btn btn-sm btn-success"
+                on:click={() => approveOpportunity(opportunity.id)}
+                disabled={
+                  isApproving ||
+                  (userRole === "admin" && opportunity.is_approved) ||
+                  (userRole === "vice_president" &&
+                    (!opportunity.is_approved || opportunity.is_approved_vp)) ||
+                  (userRole === "president" &&
+                    (!opportunity.is_approved_vp || opportunity.is_approved_president))
+                }
+              >
+                {isApproving
+                  ? "Processing..."
+                  : userRole === "admin"
+                  ? opportunity.is_approved
+                    ? "Admin Approved"
+                    : "Approve as Admin"
+                  : userRole === "vice_president"
+                  ? opportunity.is_approved_vp
+                    ? "VP Approved"
+                    : "Approve as VP"
+                  : userRole === "president"
+                  ? opportunity.is_approved_president
+                    ? "President Approved"
+                    : "Approve as President"
+                  : "Approve"}
+              </button>
+              <button
+                class="btn btn-sm btn-primary"
+                on:click={() => editOpportunity(opportunity)}
+              >
+                Edit
+              </button>
+              <button
+                class="btn btn-sm btn-error"
+                on:click={() => deleteOpportunity(opportunity.id)}
+              >
+                Delete
+              </button>
+            </td>
           </tr>
-        </thead>
-        <tbody>
-          {#each opportunities as opportunity}
-            <tr class="hover">
-              <td class="px-4 py-2">{opportunity.opt_statement}</td>
-              <td class="px-4 py-2">{opportunity.planned_actions}</td>
-              <td class="px-4 py-2">{opportunity.kpi}</td>
-              <td class="px-4 py-2">{opportunity.key_persons}</td>
-              <td class="px-4 py-2">{opportunity.target_output}</td>
-              <td class="px-4 py-2">{opportunity.budget}</td>
-              <td class="px-4 py-2">{opportunity.department_name}</td>
-              <td class="px-4 py-2 flex gap-2">
-                <button
-                  on:click={() => editOpportunity(opportunity)}
-                  class="btn bg-blue-600 hover:bg-blue-700 text-white font-medium"
-                  >Edit</button
-                >
-                <button
-                  on:click={() => approveOpportunity(opportunity)}
-                  class="btn text-white {opportunity.is_approved
-                    ? 'bg-green-700 cursor-not-allowed'
-                    : 'btn-success'}"
-                  disabled={opportunity.is_approved}
-                >
-                  {opportunity.is_approved ? "Approved" : "Approve"}
-                </button>
-                <button
-                  on:click={() => deleteOpportunity(opportunity.id)}
-                  class="btn bg-red-600 hover:bg-red-700 text-white font-medium"
-                  >Delete</button
-                >
-              </td>
-            </tr>
-          {/each}
-        </tbody>
-      </table>
-    </div>
+        {/each}
+      </tbody>
+    </table>
   {/if}
 </div>

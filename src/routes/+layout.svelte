@@ -110,10 +110,10 @@
         lastName: profileData.last_name || "User",
       });
 
-      // Redirect logic
+      // Redirect logic: Ensure redirection happens only once on root `/`
       if (profileData.is_verified && currentPath === "/") {
         goto("/dashboard");
-      } else if (!profileData.is_verified) {
+      } else if (!profileData.is_verified && currentPath === "/login") {
         console.warn("User not verified, redirecting to /login.");
         goto("/login");
       }
@@ -125,6 +125,7 @@
     loading = false;
   }
 };
+
 
 
 onMount(() => {
