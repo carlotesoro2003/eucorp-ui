@@ -83,6 +83,8 @@
     }
   };
 
+  
+
   const fetchGoalDetails = async (): Promise<void> => {
     if (goalId === null) return;
     isLoading = true;

@@ -95,20 +95,20 @@
     fetchUserProfile();
 </script>
 
-<div class="hero min-h-screen bg-base-300 overflow-y-auto">
+<div class="hero min-h-screen overflow-y-auto">
     <div class="hero-content flex flex-col items-center justify-center">
         <div class="max-w-md text-center">
             {#if loading}
                 <span class="loading loading-spinner loading-sm"></span>
-                <p class="text-white">Loading...</p>
+                <p class="">Loading...</p>
             {:else if session !== null && profile}
-                <h1 class="text-white font-bold text-4xl">Edit Profile</h1>
+                <h1 class=" font-bold text-4xl">Edit Profile</h1>
                 {#if uploadedImageUrl}
                     <img src={uploadedImageUrl} alt="Profile Picture" class="rounded-full w-32 h-32 mx-auto mb-4" />
                 {/if}
                 <form on:submit|preventDefault={saveProfile} class="mt-4">
                     <div class="mb-4">
-                        <label for="profile-pic" class="text-white mb-2 cursor-pointer">Profile Picture</label>
+                        <label for="profile-pic" class=" mb-2 cursor-pointer">Profile Picture</label>
                         <div class="relative">
                             <input id="profile-pic" type="file" accept="image/*" on:change={handleProfilePicChange} class="absolute inset-0 w-full h-full opacity-0 cursor-pointer" />
                             <button type="button" class="w-full py-2 px-4 border border-gray-300 rounded-lg bg-gray-100 hover:bg-gray-200 focus:outline-none text-gray-700">
@@ -117,15 +117,15 @@
                         </div>
                     </div>
                     <div class="mb-4">
-                        <label for="first-name" class="text-white">First Name</label>
+                        <label for="first-name" class="">First Name</label>
                         <input id="first-name" type="text" bind:value={profile.first_name} placeholder="Enter first name" class="input input-bordered w-full" />
                     </div>
                     <div class="mb-4">
-                        <label for="last-name" class="text-white">Last Name</label>
+                        <label for="last-name" class="">Last Name</label>
                         <input id="last-name" type="text" bind:value={profile.last_name} placeholder="Enter last name" class="input input-bordered w-full" />
                     </div>
                     <div class="mb-4">
-                        <label for="role" class="text-white">Role</label>
+                        <label for="role" class="">Role</label>
                         <input id="role" type="text" value={profile.role} disabled class="input input-bordered w-full bg-gray-100" />
                     </div>
                     <button type="submit" class="btn btn-primary w-full" disabled={saving}>
