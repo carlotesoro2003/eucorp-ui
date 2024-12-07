@@ -124,8 +124,7 @@
 };
 
 
-  // Generate a summary report using AI
-  // Generate a summary report and directly export it as a PDF
+  // Generate a summary report using AI nd directly export it as a PDF
 const generateSummaryPDF = async () => {
   isGeneratingSummary = true;
 

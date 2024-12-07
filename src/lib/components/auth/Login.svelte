@@ -110,7 +110,32 @@
 
     isLoading = false;
   }
+
+  async function handleAzureSignIn() {
+    try {
+        const { error, data } = await supabase.auth.signInWithOAuth({
+            provider: "azure",
+            options: {
+                scopes: "email openid profile", // Specify required scopes
+                redirectTo: `http://localhost:5173/auth/callback`, // Replace `/callback` with your desired route
+            },
+        });
+
+        if (error) {
+            message = `Failed to initiate Azure login: ${error.message}`;
+            console.error("Azure login initiation error:", error);
+            return;
+        }
+        
+        message = "Redirecting to Azure login...";
+    } catch (err) {
+        console.error("Error during Azure sign-in:", err);
+        message = "Unexpected error occurred. Please try again.";
+    }
+}
+
 </script>
+
 
 <div class="h-screen grid lg:grid-cols-2">
   <!-- Left Section with Enhanced Background and Content -->
@@ -271,6 +296,15 @@
       {/if}
 
       <div class="divider">OR</div>
+
+      <!-- Azure Sign-in Button -->
+      <button
+        type="button"
+        class="btn bg-blue-600 w-full text-white flex items-center justify-center space-x-2"
+        on:click={handleAzureSignIn}
+      >
+        <span>Sign in with Azure</span>
+      </button>
 
       <p class="text-sm text-center mt-4">
         {#if isLogin}

@@ -9,6 +9,9 @@
 	"/api/summary-report-plan-monitoring": [
 		"src/routes/api/summary-report-plan-monitoring/+server.ts"
 	],
+	"/auth/callback": [
+		"src/routes/auth/callback/+server.ts"
+	],
 	"/classification": [
 		"src/routes/+layout.ts"
 	],
