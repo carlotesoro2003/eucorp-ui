@@ -23,7 +23,8 @@ export const nodes = [
 	() => import('./nodes/19'),
 	() => import('./nodes/20'),
 	() => import('./nodes/21'),
-	() => import('./nodes/22')
+	() => import('./nodes/22'),
+	() => import('./nodes/23')
 ];
 
 export const server_loads = [];
@@ -37,19 +38,20 @@ export const dictionary = {
 		"/login": [7],
 		"/monitoring": [8],
 		"/monitoring/mid-year": [9],
-		"/opportunities": [10],
-		"/plans": [11],
-		"/plans/operationalPlans": [12],
-		"/plans/operationalPlans/[id]": [13],
-		"/plans/strategicPlans": [14],
-		"/plans/[id]": [15],
-		"/plans/[id]/[id]": [16],
-		"/profile": [17],
-		"/riskManagement": [18],
-		"/risks": [19],
-		"/risks/riskAssessment": [20],
-		"/test-sidebar": [21],
-		"/users": [22]
+		"/monitoring/year-end": [10],
+		"/opportunities": [11],
+		"/plans": [12],
+		"/plans/operationalPlans": [13],
+		"/plans/operationalPlans/[id]": [14],
+		"/plans/strategicPlans": [15],
+		"/plans/[id]": [16],
+		"/plans/[id]/[id]": [17],
+		"/profile": [18],
+		"/riskManagement": [19],
+		"/risks": [20],
+		"/risks/riskAssessment": [21],
+		"/test-sidebar": [22],
+		"/users": [23]
 	};
 
 export const hooks = {

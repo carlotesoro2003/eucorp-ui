@@ -63,7 +63,7 @@
 		  icon: ChartArea,
 		  items: [
 			{ title: "Mid-Year Monitoring ", url: "/monitoring/mid-year" },
-			{ title: "Year-End Monitoring", url: "/monitoring" },
+			{ title: "Year-End Monitoring", url: "/monitoring/year-end" },
 		  ],
 		},
 	  ],
@@ -105,7 +105,7 @@
 		  icon: ChartPie,
 		  items: [
 			{ title: "Mid-Year Monitoring ", url: "/monitoring/mid-year" },
-			{ title: "Year-End Monitoring", url: "/monitoring" },
+			{ title: "Year-End Monitoring", url: "/monitoring/year-end" },
 		  ],
 		},
 	  ],

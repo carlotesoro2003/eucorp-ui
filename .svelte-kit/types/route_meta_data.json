@@ -30,6 +30,9 @@
 	"/monitoring/mid-year": [
 		"src/routes/+layout.ts"
 	],
+	"/monitoring/year-end": [
+		"src/routes/+layout.ts"
+	],
 	"/opportunities": [
 		"src/routes/+layout.ts"
 	],
