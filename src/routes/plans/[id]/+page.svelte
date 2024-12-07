@@ -172,10 +172,7 @@
       doc.text(`Lead: ${goal.lead}`, 14, 37); // Lead Name
     }
 
-    // Add VP and President names
-    doc.setFontSize(12);
-    doc.text(`Vice President: ${vicePresidentName || "N/A"}`, 14, 44);
-    doc.text(`President: ${presidentName || "N/A"}`, 14, 51);
+  
 
     // Prepare table rows
     const rows = objectives.map((obj) => [
@@ -212,9 +209,21 @@
 
     doc.setFontSize(12);
     const nameToDisplay = adminName || "Admin Name";
+    const vcToDisplay = vicePresidentName || "Vice PResident Name";
+    const presidentToDisplay = presidentName || "President Name";
+
     doc.text(`${nameToDisplay}(sgnd)`, 14, signatureStartY - 5);
     doc.text("_________________________", 14, signatureStartY);
     doc.text("Corporate Planning Officer", 14, signatureStartY + 5);
+
+    // Add VP and President names
+    doc.text(`${vcToDisplay}`, 100, signatureStartY - 5);
+    doc.text("_________________________", 100, signatureStartY);
+    doc.text("Vice President", 100, signatureStartY + 5);
+
+    doc.text(`${presidentToDisplay}`, 180, signatureStartY - 5);
+    doc.text("_________________________", 180, signatureStartY);
+    doc.text("President", 180, signatureStartY + 5);
 
     // Save the PDF
     doc.save("StrategicObjectives.pdf");
