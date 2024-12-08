@@ -223,28 +223,71 @@
 
   
 
-  const approveRisk = async (id: string) => {
-    isApproving = true;
+const approveRisk = async (id: string) => {
+  isApproving = true;
 
-    let updateField = {};
-    if (userRole === "admin") {
-      updateField = { is_approved: true };
-    } else if (userRole === "vice_president") {
-      updateField = { is_approved_vp: true };
-    } else if (userRole === "president") {
-      updateField = { is_approved_president: true };
-    }
+  let updateField = {};
+  if (userRole === "admin") {
+    updateField = { is_approved: true };
+  } else if (userRole === "vice_president") {
+    updateField = { is_approved_vp: true };
+  } else if (userRole === "president") {
+    updateField = { is_approved_president: true };
+  }
 
-    const { error } = await supabase.from("risks").update(updateField).eq("id", id);
+  try {
+    // Update the approval status of the risk
+    const { data, error } = await supabase.from("risks").update(updateField).eq("id", id).select();
 
     if (error) {
       console.error("Error approving risk:", error);
-    } else {
-      await fetchRisks();
+      return;
     }
 
+    // If the President approved the risk, add it to the risk_monitoring table
+    if (userRole === "president" && data && data.length > 0) {
+      const approvedRisk = data[0];
+
+      // Fetch the associated risk assessments
+      const { data: assessments, error: assessmentError } = await supabase
+        .from("risk_assessment")
+        .select("*")
+        .eq("risk_id", approvedRisk.id);
+
+      if (assessmentError) {
+        console.error("Error fetching risk assessments:", assessmentError);
+        return;
+      }
+
+      // Prepare the data for insertion into the risk_monitoring table
+      const riskMonitoringEntries = assessments.map((assessment) => ({
+        risk_id: approvedRisk.id,
+        likelihood_rating_id: assessment.lr,
+        severity_id: assessment.s,
+        control_rating_id: assessment.rcr,
+        monitoring_rating_id: assessment.rmr,
+        department_id: approvedRisk.department_id, 
+      }));
+
+      // Insert the data into the risk_monitoring table
+      const { error: monitoringError } = await supabase
+        .from("risk_monitoring")
+        .insert(riskMonitoringEntries);
+
+      if (monitoringError) {
+        console.error("Error inserting into risk_monitoring:", monitoringError);
+      }
+    }
+
+    // Refresh the list of risks
+    await fetchRisks();
+  } catch (error) {
+    console.error("Unexpected error while approving risk:", error);
+  } finally {
     isApproving = false;
-  };
+  }
+};
+
 
   const deleteRisk = async (id: string) => {
     deletingRiskId = id;

@@ -299,8 +299,6 @@ const exportToPDF = () => {
   // Save the PDF file
   doc.save("Opportunities_Report.pdf");
 };
-
-
 </script>
 
 <div class="container mx-auto p-6">
