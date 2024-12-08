@@ -11,6 +11,7 @@
     key_persons: string;
     budget: number;
     profile_id: string;
+    department_id: string; // Add department_id to the Risk interface
   }
 
   interface Classification {
@@ -127,6 +128,7 @@
         key_persons: "",
         budget: 0,
         profile_id: profile?.id || "",
+        department_id: profile?.department_id || "", // Include department_id
       },
     ];
   };
@@ -140,7 +142,7 @@
 
   const saveRisks = async () => {
     try {
-      const sanitizedRisks = risks.map(({ id, ...risk }) => risk);
+      const sanitizedRisks = risks.map(({ id, ...risk }) => risk); // Exclude id during upsert
       const { data, error } = await supabase.from("risks").upsert(sanitizedRisks, { onConflict: "rrn" });
       if (error) throw error;
 

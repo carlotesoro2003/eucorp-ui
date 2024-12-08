@@ -1,4 +1,4 @@
-<script lang="ts">
+  <script lang="ts">
   import { supabase } from "$lib/supabaseClient";
   import Eye from "lucide-svelte/icons/eye";
   import EyeOff from "lucide-svelte/icons/eye-off";
@@ -117,7 +117,7 @@
             provider: "azure",
             options: {
                 scopes: "email openid profile", // Specify required scopes
-                redirectTo: `http://localhost:5173/auth/callback`, // Replace `/callback` with your desired route
+                redirectTo: `https://eqkwwbmbswmpjpfzttov.supabase.co/auth/v1/callback`, 
             },
         });
 
@@ -126,7 +126,7 @@
             console.error("Azure login initiation error:", error);
             return;
         }
-        
+
         message = "Redirecting to Azure login...";
     } catch (err) {
         console.error("Error during Azure sign-in:", err);
@@ -303,6 +303,11 @@
         class="btn bg-blue-600 w-full text-white flex items-center justify-center space-x-2"
         on:click={handleAzureSignIn}
       >
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" class="w-5 h-5" fill="none">
+          <path d="M126.23 14.7L0 207.43h71.54L126.23 80.7l54.7 126.74h71.54L126.23 14.7Z" fill="#0078D4"/>
+          <path d="M88.73 213.22H176l-44.76-79.55-42.51 79.55Z" fill="#008AD7"/>
+          <path d="M176 213.22H252L200.28 127l-24.28 86.22Z" fill="#0079B7"/>
+        </svg>
         <span>Sign in with Azure</span>
       </button>
 
