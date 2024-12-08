@@ -38,8 +38,7 @@
 
 <div>
   {#if loading}
-    <span class="loading loading-spinner loading-sm"></span>
-    <p class="text-white">Loading...</p> <!-- Show loading state -->
+ 
   {:else if session !== null && profile}
     {#if profile.role === 'admin' || profile.role == 'vice_president' || profile.role == 'president'}
       <AdminOpportunities />
