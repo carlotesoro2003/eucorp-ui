@@ -1,21 +1,5 @@
 <script lang="ts">
 	import { X } from "lucide-svelte";
-
-	/** Types */
-	type StrategicGoal = {
-		id: number;
-		goal_no: number;
-		name: string;
-		description: string;
-		kpi: string;
-		lead_id: number | null;
-	};
-
-	type Lead = {
-		id: number;
-		name: string;
-	};
-
 	/** Props */
 	let {
 		goal,
@@ -23,9 +7,9 @@
 		onSave,
 		onClose,
 	}: {
-		goal: StrategicGoal | null;
-		leads: Lead[];
-		onSave: (goal: Partial<StrategicGoal>) => void;
+		goal: any;
+		leads: Array<{ id: number; name: string }>;
+		onSave: (data: any) => void;
 		onClose: () => void;
 	} = $props();
 

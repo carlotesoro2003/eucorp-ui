@@ -72,6 +72,11 @@
 		}
 	};
 
+	/** Calculate next goal number */
+	const getNextGoalNumber = (): number => {
+		return strategicGoals.length > 0 ? Math.max(...strategicGoals.map((goal) => goal.goal_no)) + 1 : 1;
+	};
+
 	/** Display alert message */
 	const displayAlert = (message: string, type: "success" | "error") => {
 		alertMessage = message;
@@ -101,7 +106,11 @@
 				closeForm();
 			}
 		} else {
-			const { error } = await supabase.from("strategic_goals").insert([formData]);
+			const newGoal = {
+				...formData,
+				goal_no: getNextGoalNumber(),
+			};
+			const { error } = await supabase.from("strategic_goals").insert([newGoal]);
 			if (error) {
 				displayAlert("Error creating goal", "error");
 			} else {
@@ -112,16 +121,38 @@
 		}
 	};
 
-	/** Delete goal */
+	/** Delete goal and reorder remaining goals */
 	const deleteGoal = async (id: number) => {
 		if (confirm("Are you sure you want to delete this goal?")) {
+			loading = true;
 			const { error } = await supabase.from("strategic_goals").delete().match({ id });
+
 			if (error) {
 				displayAlert("Error deleting goal", "error");
-			} else {
-				displayAlert("Goal deleted successfully", "success");
-				await fetchStrategicGoals();
+				loading = false;
+				return;
 			}
+
+			// Fetch remaining goals for reordering
+			const { data: remainingGoals, error: fetchError } = await supabase.from("strategic_goals").select("*").order("goal_no", { ascending: true });
+
+			if (fetchError) {
+				displayAlert("Error reordering goals", "error");
+				loading = false;
+				return;
+			}
+
+			// Reorder remaining goals
+			for (let i = 0; i < remainingGoals.length; i++) {
+				await supabase
+					.from("strategic_goals")
+					.update({ goal_no: i + 1 })
+					.match({ id: remainingGoals[i].id });
+			}
+
+			displayAlert("Goal deleted and reordered successfully", "success");
+			await fetchStrategicGoals();
+			loading = false;
 		}
 	};
 
@@ -158,9 +189,11 @@
 	);
 
 	const paginatedItems = $derived(filteredItems.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage));
-
 	const totalPages = $derived(Math.ceil(filteredItems.length / itemsPerPage));
 </script>
+
+<!-- Rest of your existing template code remains the same -->
+
 
 <div class="container mx-auto p-4">
 	{#if showAlert}
