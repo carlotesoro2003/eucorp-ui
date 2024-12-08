@@ -100,7 +100,7 @@
       {
         title: "Monitoring",
         url: "/monitoring/mid-year",
-        icon: ChartPie,
+        icon: ChartArea,
         items: [
           { title: "Mid-Year Monitoring ", url: "/monitoring/mid-year" },
           { title: "Year-End Monitoring", url: "/monitoring/year-end" },

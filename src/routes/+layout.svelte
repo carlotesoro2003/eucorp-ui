@@ -42,10 +42,10 @@
     user = value;
   });
 
-  const ensureSession = async () => {
+
+const ensureSession = async () => {
   try {
     if (!user.session) {
-      // Fetch session if not already in userStore
       const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
       if (sessionError || !sessionData?.session) {
         console.log("No active session found. Redirecting to /login.");
@@ -53,7 +53,6 @@
         return;
       }
 
-      // Update user session
       userStore.update((u) => ({ ...u, session: sessionData.session }));
     }
 
@@ -89,7 +88,6 @@
     }
 
     if (profileData) {
-      // Update userStore with profile data
       userStore.set({
         session,
         isVerified: profileData.is_verified ?? false,
@@ -110,12 +108,10 @@
         lastName: profileData.last_name || "User",
       });
 
-      // Redirect logic: Ensure redirection happens only once on root `/`
+      // Only redirect if the user is on the root path
       if (profileData.is_verified && currentPath === "/") {
+        console.log("Redirecting to /dashboard.");
         goto("/dashboard");
-      } else if (!profileData.is_verified && currentPath === "/login") {
-        console.warn("User not verified, redirecting to /login.");
-        goto("/login");
       }
     }
   } catch (err) {
@@ -125,6 +121,7 @@
     loading = false;
   }
 };
+
 
 
 

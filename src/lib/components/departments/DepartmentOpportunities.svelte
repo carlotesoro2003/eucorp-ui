@@ -55,35 +55,90 @@
       console.log("User is not logged in");
     }
   };
-  const createOpportunity = async () => {
-    if (!profileId) return;
+  
+      const createOpportunity = async () => {
+        if (!profileId) return;
 
-    const { error } = await supabase.from("opportunities").insert(
-      formData.map((row) => ({
-        ...row,
-        profile_id: profileId,
-        department_id: row.department_id, // Include department_id
-      }))
-    );
+        isSaving = true; // Set saving state
+        try {
+            // Insert the opportunity
+            const { data, error } = await supabase.from("opportunities").insert(
+                formData.map((row) => ({
+                    ...row,
+                    profile_id: profileId,
+                    department_id: row.department_id, // Include department_id
+                }))
+            ).select(); // Return the created rows
 
-    if (error) {
-      console.error("Error creating opportunities:", error);
-    } else {
-      fetchOpportunities();
-      formData = [
-        {
-          opt_statement: "",
-          planned_actions: "",
-          kpi: "",
-          key_persons: "",
-          target_output: "",
-          budget: 0,
-          profile_id: "",
-          department_id: "",
-        },
-      ];
+            if (error) {
+                console.error("Error creating opportunities:", error);
+                return;
+            }
+
+            if (data && data.length > 0) {
+        // Map over the created opportunities
+        const events = await Promise.all(
+            data.map(async (opportunity) => {
+                // Fetch the department name based on the department_id
+                const { data: departmentData, error: departmentError } = await supabase
+                    .from("departments") // Replace with your department table name
+                    .select("name")
+                    .eq("id", opportunity.department_id)
+                    .single();
+
+                if (departmentError) {
+                    console.error(`Error fetching department name for ID ${opportunity.department_id}:`, departmentError);
+                    return null; // Skip creating event if department fetch fails
+                }
+
+                const departmentName = departmentData?.name || "Unknown Department";
+
+                // Return the event object with department name included in description
+                return {
+                    event_id: opportunity.id, // Use the opportunity's ID
+                    event_type: "opportunity",
+                    description: `${departmentName} created a new opportunity`,
+                };
+            })
+        );
+
+        // Filter out any null values in case fetching department data failed
+        const validEvents = events.filter((event) => event !== null);
+
+        // Insert events into the recent_events table
+        if (validEvents.length > 0) {
+            const { error: eventError } = await supabase.from("recent_events").insert(validEvents);
+
+            if (eventError) {
+                console.error("Error adding to recent events:", eventError);
+            } else {
+                console.log("Recent events updated successfully.");
+            }
+        }
     }
-  };
+
+
+        // Reset the form and fetch updated opportunities
+        fetchOpportunities();
+        formData = [
+            {
+                opt_statement: "",
+                planned_actions: "",
+                kpi: "",
+                key_persons: "",
+                target_output: "",
+                budget: 0,
+                profile_id: "",
+                department_id: "",
+            },
+        ];
+    } catch (err) {
+        console.error("Unexpected error:", err);
+    } finally {
+        isSaving = false; // Reset saving state
+    }
+};
+
 
   const fetchOpportunities = async (): Promise<void> => {
     isLoading = true;

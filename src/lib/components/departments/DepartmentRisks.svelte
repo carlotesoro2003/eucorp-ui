@@ -223,6 +223,17 @@
             <td>
               <button class="btn btn-error btn-sm" on:click={() => removeRow(index)}>Remove</button>
             </td>
+            <td>
+              <a
+              class="btn btn-info btn-sm"
+              href={`/risks/riskAssessment?riskId=${risk.id}`}
+              target="_self"
+              aria-disabled={!risk.id}
+              class:disabled={!risk.id}
+              >
+              Go to Risk Assessment
+              </a>
+            </td>
           </tr>
         {/each}
       </tbody>

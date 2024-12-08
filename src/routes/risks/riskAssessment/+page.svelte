@@ -386,9 +386,12 @@
         >
           <option value="" disabled>Select monitoring rating</option>
           {#each riskMonitoringRating as rating}
-            <option value={rating.id}>{rating.status}</option>
+            {#if rating.status === "New Risk"}
+              <option value={rating.id}>{rating.status}</option>
+            {/if}
           {/each}
         </select>
+
 
         <div class="modal-action">
           <button class="btn btn-primary" on:click={saveRiskAssessment}>Save</button>

@@ -1,10 +1,11 @@
 <script lang="ts">
-    import { onMount } from "svelte";
     import { supabase } from "$lib/supabaseClient";
+    import { onMount } from "svelte";
     import jsPDF from "jspdf";
-  
+    import autoTable from "jspdf-autotable";
+
     interface Opportunity {
-        opt_id: number;
+        id: number;
         opt_statement: string;
         kpi: string;
         planned_actions: string;
@@ -12,198 +13,165 @@
         achieved: boolean;
         time_completed: string | null;
     }
-  
+
     let opportunities: Opportunity[] = [];
     let filteredOpportunities: Opportunity[] = [];
-    let filterStatus: string = "All"; 
+    let filterStatus: "all" | "achieved" | "not_achieved" = "all";
     let isLoading = true;
-  
-    // Fetch all opportunities from the opt_monitoring table
+    let summaryReport = ""; // Holds the generated summary report
+    let isGeneratingSummary = false;
+
+    // Fetch opportunities
     const fetchOpportunities = async () => {
-        isLoading = true;
-  
+    isLoading = true;
+
+    try {
+        // Fetch data from Supabase
         const { data, error } = await supabase
             .from("opt_monitoring")
             .select(`
                 opt_id,
-                opportunities(opt_statement, kpi, planned_actions),
+                opportunities (
+                    opt_statement,
+                    kpi,
+                    planned_actions
+                ),
                 evaluation,
                 is_accomplished,
                 time_completed
             `);
-  
+
+        // Handle errors
         if (error) {
             console.error("Error fetching opportunities:", error);
             return;
         }
-  
+
+        // Process and map data
         if (data) {
-            // Map and structure the fetched data
             opportunities = data.map((item: any) => ({
-                opt_id: item.opt_id,
-                opt_statement: item.opportunities.opt_statement,
-                kpi: item.opportunities.kpi,
-                planned_actions: item.opportunities.planned_actions,
-                evaluation: item.evaluation,
-                achieved: item.is_accomplished,
-                time_completed: item.time_completed
+                id: item.opt_id,
+                opt_statement: item.opportunities?.opt_statement || "No Statement Available",
+                kpi: item.opportunities?.kpi || "No KPI Available",
+                planned_actions: item.opportunities?.planned_actions || "No Actions Available",
+                evaluation: item.evaluation || "Pending Evaluation",
+                achieved: item.is_accomplished || false,
+                time_completed: item.time_completed || null,
             }));
-  
-            applyFilter(); // Apply the current filter to update the displayed opportunities
+
+            // Apply the current filter
+            applyFilter();
         }
-  
+    } catch (error) {
+        // Catch unexpected errors
+        console.error("Unexpected error during data fetch:", error);
+    } finally {
+        // Ensure the loading state is cleared
         isLoading = false;
-    };
-  
-    // Filter opportunities based on the selected status
+    }
+};
+
+
+    // Apply filter based on status
     const applyFilter = () => {
-        if (filterStatus === "Achieved") {
-            filteredOpportunities = opportunities.filter((opportunity) => opportunity.achieved);
-        } else if (filterStatus === "Not Achieved") {
-            filteredOpportunities = opportunities.filter((opportunity) => !opportunity.achieved);
-        } else {
-            filteredOpportunities = opportunities; // Show all opportunities
+        if (filterStatus === "all") {
+            filteredOpportunities = opportunities;
+        } else if (filterStatus === "achieved") {
+            filteredOpportunities = opportunities.filter((o) => o.achieved);
+        } else if (filterStatus === "not_achieved") {
+            filteredOpportunities = opportunities.filter((o) => !o.achieved);
         }
     };
-  
-    // Update the filter status and apply the filter
-    const handleFilterChange = (status: string) => {
-        filterStatus = status;
-        applyFilter();
-    };
-  
-    // Export to PDF using jsPDF
-    const exportToPDF = () => {
-        const doc = new jsPDF("landscape");
-        const title = "Opportunities Monitoring Report";
-  
-        doc.setFontSize(12);
-        doc.text(title, 14, 15);
-  
-        // Table columns and their headers
-        const columns = [
-            "Opportunity Statement",
-            "KPI",
-            "Planned Actions",
-            "Evaluation",
-            "Status",
-            "Achieved On"
-        ];
-  
-        // Map filtered opportunities to table rows
-        const rows = filteredOpportunities.map(opportunity => [
-            opportunity.opt_statement,
-            opportunity.kpi,
-            opportunity.planned_actions,
-            opportunity.evaluation || "Pending",
-            opportunity.achieved ? "Achieved" : "Not Achieved",
-            opportunity.achieved && opportunity.time_completed
-                ? new Date(opportunity.time_completed).toLocaleDateString()
-                : "N/A"
-        ]);
-  
-        // Set starting position for table
-        let startY = 25;
-  
-        // Table header
-        const headerHeight = 10;
-        const columnWidths = [60, 40, 60, 40, 30, 30];
-  
-        // Draw table header
-        doc.setFontSize(10);
-        columns.forEach((column, index) => {
-            doc.rect(14 + columnWidths.slice(0, index).reduce((a, b) => a + b, 0), startY, columnWidths[index], headerHeight);
-            doc.text(column, 14 + columnWidths.slice(0, index).reduce((a, b) => a + b, 0) + 2, startY + 7);
-        });
-  
-        // Draw table rows
-        startY += headerHeight;
-        rows.forEach(row => {
-            row.forEach((cell, index) => {
-                doc.rect(14 + columnWidths.slice(0, index).reduce((a, b) => a + b, 0), startY, columnWidths[index], 8);
-                doc.text(cell, 14 + columnWidths.slice(0, index).reduce((a, b) => a + b, 0) + 2, startY + 5);
+
+    // Generate a PDF report with the summary
+    const generateSummaryPDF = async () => {
+        isGeneratingSummary = true;
+
+        try {
+            const response = await fetch("/api/summary-report-opt-monitoring", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ opportunities: filteredOpportunities }),
             });
-            startY += 8;
-        });
-  
-        // Save the generated PDF
-        doc.save("OpportunitiesMonitoring.pdf");
+
+            const data = await response.json();
+
+            if (!response.ok || data.error) {
+                throw new Error(data.error || "Failed to generate summary.");
+            }
+
+            // Create the PDF with the summary report
+            const doc = new jsPDF();
+            const title = `Summary Report`;
+
+            doc.setFontSize(14);
+            doc.text(title, 14, 15);
+
+            const summaryLines = doc.splitTextToSize(data.summaryReport, 180);
+            doc.setFontSize(12);
+            doc.text(summaryLines, 14, 25);
+
+            doc.save("OpportunitiesSummary.pdf");
+        } catch (error) {
+            console.error("Error generating summary report:", error);
+            alert("An error occurred while generating the summary report.");
+        } finally {
+            isGeneratingSummary = false;
+        }
     };
-  
-    onMount(() => {
-        fetchOpportunities();
-    });
+
+    onMount(fetchOpportunities);
 </script>
-  
+
+<!-- HTML for Opportunities Monitoring -->
 <div class="min-h-screen p-8">
-    <h1 class="text-3xl font-bold mb-6">Opportunities Monitoring (Admin)</h1>
-  
-    <!-- Filter Buttons -->
+    <h1 class="text-3xl font-bold mb-6">Opportunities Monitoring</h1>
+
     <div class="flex space-x-4 mb-4">
-        <button
-            class="btn btn-primary"
-            on:click={() => handleFilterChange("All")}
-        >
-            Show All
-        </button>
-        <button
-            class="btn btn-success"
-            on:click={() => handleFilterChange("Achieved")}
-        >
-            Show Achieved
-        </button>
-        <button
-            class="btn btn-error"
-            on:click={() => handleFilterChange("Not Achieved")}
-        >
-            Show Not Achieved
-        </button>
-        <button class="btn btn-secondary ml-auto" on:click={exportToPDF}>
-            Export to PDF
+        <button class="btn btn-primary" on:click={() => { filterStatus = "all"; applyFilter(); }}>Show All</button>
+        <button class="btn btn-success" on:click={() => { filterStatus = "achieved"; applyFilter(); }}>Show Achieved</button>
+        <button class="btn btn-error" on:click={() => { filterStatus = "not_achieved"; applyFilter(); }}>Show Not Achieved</button>
+        <button class="btn btn-accent ml-auto" on:click={generateSummaryPDF} disabled={isGeneratingSummary}>
+            {isGeneratingSummary ? "Generating..." : "Generate Summary Report"}
         </button>
     </div>
-  
-    <!-- Loading and Table View -->
+
     {#if isLoading}
-        <div class="text-center">
-            <span class="loading loading-spinner text-primary"></span>
-            <p>Loading opportunities...</p>
-        </div>
-    {:else}
-        <div class="overflow-x-auto shadow-lg rounded-lg">
-            <table class="table-auto w-full text-left text-sm">
-                <thead>
+        <div class="text-center text-xl">Loading...</div>
+    {:else if filteredOpportunities.length > 0}
+        <table class="table-auto w-full text-sm">
+            <thead>
+                <tr>
+                    <th>Opportunity Statement</th>
+                    <th>KPI</th>
+                    <th>Planned Actions</th>
+                    <th>Evaluation</th>
+                    <th>Status</th>
+                    <th>Time Completed</th>
+                </tr>
+            </thead>
+            <tbody>
+                {#each filteredOpportunities as o}
                     <tr>
-                        <th class="px-4 py-3">Opportunity Statement</th>
-                        <th class="px-4 py-3">KPI</th>
-                        <th class="px-4 py-3">Planned Actions</th>
-                        <th class="px-4 py-3">Evaluation</th>
-                        <th class="px-4 py-3">Status</th>
-                        <th class="px-4 py-3">Achieved On</th>
+                        <td>{o.opt_statement}</td>
+                        <td>{o.kpi}</td>
+                        <td>{o.planned_actions}</td>
+                        <td>{o.evaluation || "Pending Evaluation"}</td>
+                        <td>{o.achieved ? "Achieved" : "Not Achieved"}</td>
+                        <td>{o.time_completed ? new Date(o.time_completed).toLocaleString() : "N/A"}</td>
                     </tr>
-                </thead>
-                <tbody>
-                    {#each filteredOpportunities as { opt_statement, kpi, planned_actions, evaluation, achieved, time_completed }}
-                        <tr class="hover">
-                            <td class="px-4 py-3">{opt_statement}</td>
-                            <td class="px-4 py-3">{kpi}</td>
-                            <td class="px-4 py-3">{planned_actions}</td>
-                            <td class="px-4 py-3">{evaluation || "Pending"}</td>
-                            <td class="px-4 py-3">{achieved ? "Achieved" : "Not Achieved"}</td>
-                            <td class="px-4 py-3">
-                                {achieved && time_completed ? new Date(time_completed).toLocaleDateString() : "N/A"}
-                            </td>
-                        </tr>
-                    {/each}
-                </tbody>
-            </table>
-        </div>
+                {/each}
+            </tbody>
+        </table>
+    {:else}
+        <div>No opportunities found for this filter.</div>
     {/if}
 </div>
-  
+
 <style>
     .btn {
-        padding: 0.5rem 1rem;
-        border-radius: 0.375rem;
+        padding: 8px 12px;
+        border-radius: 8px;
+        cursor: pointer;
     }
 </style>

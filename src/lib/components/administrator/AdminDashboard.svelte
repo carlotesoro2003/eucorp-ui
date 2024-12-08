@@ -1,10 +1,13 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { Chart, registerables } from 'chart.js';
+  import { supabase } from '$lib/supabaseClient';
   Chart.register(...registerables);
 
   let barChart: Chart | null = null;
   let pieChart: Chart<'doughnut', number[], string> | null = null;
+  let recentEvents: { description: string; created_at: string }[] = [];
+  let isLoadingEvents = true;
 
   // Data for Bar Chart (Overview)
   const barChartData = {
@@ -39,11 +42,28 @@
     maintainAspectRatio: false,
   };
 
+  const fetchRecentEvents = async () => {
+    isLoadingEvents = true;
+    const { data, error } = await supabase
+      .from('recent_events')
+      .select('description, created_at')
+      .order('created_at', { ascending: false })
+      .limit(5); // Fetch the last 5 events
+
+    if (error) {
+      console.error('Error fetching recent events:', error);
+    } else {
+      recentEvents = data || [];
+    }
+
+    isLoadingEvents = false;
+  };
+
   onMount(() => {
+    // Initialize charts
     const barChartCtx = document.getElementById('barChart') as HTMLCanvasElement;
     const pieChartCtx = document.getElementById('pieChart') as HTMLCanvasElement;
 
-    // Bar Chart
     barChart = new Chart(barChartCtx, {
       type: 'bar',
       data: barChartData,
@@ -71,21 +91,23 @@
       },
     });
 
-    // Pie Chart
     pieChart = new Chart(pieChartCtx, {
       type: 'doughnut',
       data: pieChartData,
       options: chartOptions,
     });
+
+    // Fetch recent events
+    fetchRecentEvents();
   });
 </script>
 
-<div class="min-h-screen  p-6 text-gray-100 space-y-6">
+<div class="min-h-screen p-6 text-gray-100 space-y-6">
   <!-- Header with Welcome Message -->
-   
+  
   <!-- Top Metrics Cards -->
   <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-    <div class="stats shadow ">
+    <div class="stats shadow">
       <div class="stat">
         <div class="stat-title text-gray-400">Total Projects</div>
         <div class="stat-value text-blue-400">25</div>
@@ -135,6 +157,32 @@
           <canvas id="pieChart"></canvas>
         </div>
       </div>
+    </div>
+  </div>
+
+  <!-- Recent Events Section -->
+  <div class="card shadow-lg bg-gray-800 mt-6">
+    <div class="card-body">
+      <h2 class="card-title text-gray-200">Recent Events</h2>
+      {#if isLoadingEvents}
+        <div class="text-center">
+          <span class="loading loading-spinner text-primary"></span>
+          <p>Loading recent events...</p>
+        </div>
+      {:else if recentEvents.length > 0}
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {#each recentEvents as event}
+            <div class="bg-gray-700 p-4 rounded-lg shadow">
+              <p class="text-gray-200 text-sm">{event.description}</p>
+              <p class="text-gray-400 text-xs mt-2">
+                {new Date(event.created_at).toLocaleString()}
+              </p>
+            </div>
+          {/each}
+        </div>
+      {:else}
+        <p class="text-gray-400">No recent events to display.</p>
+      {/if}
     </div>
   </div>
 </div>

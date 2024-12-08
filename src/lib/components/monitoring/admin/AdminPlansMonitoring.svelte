@@ -227,7 +227,7 @@ const generateSummaryPDF = async () => {
           <tr>
             <th class="px-4 py-3">Actions Taken</th>
             <th class="px-4 py-3">KPI</th>
-            <th class="px-4 py-3">Evaluation</th>
+            <th class="px-4 py-3">Actions Taken to Achieve Action Plan</th>
             <th class="px-4 py-3">Statement</th>
             <th class="px-4 py-3">Status</th>
             <th class="px-4 py-3">Time Completed</th>
