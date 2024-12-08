@@ -1,64 +1,43 @@
 <script lang="ts">
 	import { supabase } from "$lib/supabaseClient";
-	import { PlusCircle, Trash2, Save, AlertCircle, CheckCircle, Loader2, ChevronDown } from "lucide-svelte";
+	import { onMount } from "svelte";
+	import { Plus, Target, AlertCircle, CheckCircle2 } from "lucide-svelte";
 	import ObjectiveForm from "$lib/components/strategic-objectives/ObjectiveForm.svelte";
-	import Toast from "$lib/components/strategic-objectives/Toast.svelte";
 
 	interface StrategicGoal {
 		id: number;
 		name: string;
 	}
 
-	interface StrategicObjective {
-		name: string;
-		strategic_initiatives: string;
-		kpi: string;
-		persons_involved: string;
-		target: string;
-		eval_measures: string;
-		strategic_goal_id: number;
-		profile_id: string;
-	}
-
 	// State variables
-	let strategicGoals: StrategicGoal[] = $state([]);
-	let selectedGoal: number | null = $state(null);
-	let objectives: StrategicObjective[] = $state([getEmptyObjective()]);
-	let loading: boolean = $state(true);
-	let submitting: boolean = $state(false);
-	let successMessage: string | null = $state(null);
-	let errorMessage: string | null = $state(null);
-	let activeObjectiveIndex: number = $state(0);
-	// Get current user profile id
-	let profileId: string | null = $state(null);
+	let session: any = null;
+	let profile: any = null;
+	let strategicGoals: StrategicGoal[] = [];
+	let selectedGoal: number | null = null;
+	let loading: boolean = true;
+	let currentStep: number = 0;
 
-	/** Get empty objective */
-	function getEmptyObjective(): StrategicObjective {
-		return {
-			name: "",
-			strategic_initiatives: "",
-			kpi: "",
-			persons_involved: "",
-			target: "",
-			eval_measures: "",
-			strategic_goal_id: 0,
-			profile_id: profileId || "", // Set profile_id from current user
-		};
-	}
+	// Alert states
+	let successMessage: string | null = null;
+	let errorMessage: string | null = null;
 
-	/** Get current user profile */
-	const getCurrentUser = async () => {
-		const {
-			data: { user },
-		} = await supabase.auth.getUser();
-		if (user) {
-			const { data: profile } = await supabase.from("profiles").select("id").eq("user_id", user.id).single();
+	/** Fetch user profile data */
+	const fetchUserProfile = async () => {
+		try {
+			const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+			if (sessionError) throw sessionError;
 
-			if (profile) {
-				profileId = profile.id;
-				// Refresh objectives with new profile_id
-				objectives = objectives.map((obj) => ({ ...obj, profile_id: profile.id }));
+			session = sessionData.session;
+			if (session) {
+				const { user } = session;
+				const { data, error } = await supabase.from("profiles").select("id").eq("id", user.id).single();
+				if (error) throw error;
+				profile = data;
 			}
+		} catch (error) {
+			errorMessage = `Error fetching profile: ${(error as Error).message}`;
+		} finally {
+			loading = false;
 		}
 	};
 
@@ -67,143 +46,134 @@
 		try {
 			const { data, error } = await supabase.from("strategic_goals").select("id, name");
 			if (error) throw error;
-			strategicGoals = data;
+
+			strategicGoals = data || [];
 		} catch (error) {
 			errorMessage = "Failed to fetch strategic goals.";
-		} finally {
-			loading = false;
 		}
 	};
 
-	/** Add new objective */
-	const addObjective = () => {
-		objectives = [...objectives, getEmptyObjective()];
-		activeObjectiveIndex = objectives.length - 1;
-	};
-
-	/** Remove objective */
-	const removeObjective = (index: number) => {
-		if (objectives.length > 1) {
-			objectives = objectives.filter((_, i) => i !== index);
-			if (activeObjectiveIndex >= objectives.length) {
-				activeObjectiveIndex = objectives.length - 1;
-			}
+	/** Handle goal selection */
+	const handleGoalSelection = () => {
+		if (selectedGoal) {
+			currentStep = 1;
+		} else {
+			errorMessage = "Please select a strategic goal first.";
 		}
 	};
 
-	/** Handle form submission */
-	const handleSubmit = async () => {
-		try {
-			submitting = true;
-			if (!selectedGoal) throw new Error("Please select a strategic goal");
-			if (!profileId) throw new Error("No profile found. Please login again.");
+	/** Handle back step */
+	const handleBack = () => {
+		currentStep = 0;
+	};
 
-			for (const obj of objectives) {
-				if (!obj.name.trim() || !obj.strategic_initiatives.trim() || !obj.kpi.trim() || !obj.persons_involved.trim() || !obj.target.trim() || !obj.eval_measures.trim()) {
-					throw new Error("Please fill in all fields for each objective");
-				}
-			}
-
-			const objectivesWithProfile = objectives.map((obj) => ({
-				...obj,
-				strategic_goal_id: selectedGoal,
-				profile_id: profileId,
-			}));
-
-			const { error } = await supabase.from("strategic_objectives").insert(objectivesWithProfile);
-			if (error) throw error;
-
-			successMessage = "Strategic Objectives added successfully!";
-			setTimeout(() => {
+	/** Clear messages after 5 seconds */
+	$: {
+		if (successMessage || errorMessage) {
+			const timer = setTimeout(() => {
 				successMessage = null;
-				objectives = [getEmptyObjective()];
-				activeObjectiveIndex = 0;
-			}, 2000);
-		} catch (error) {
-			errorMessage = (error as Error).message;
-			setTimeout(() => {
 				errorMessage = null;
-			}, 3000);
-		} finally {
-			submitting = false;
+			}, 5000);
+			const clearMessages = () => clearTimeout(timer);
+			clearMessages();
 		}
-	};
+	}
 
-	// Initialize data
-	getCurrentUser();
-	fetchStrategicGoals();
+	onMount(() => {
+		fetchUserProfile();
+		fetchStrategicGoals();
+	});
 </script>
 
-<div class="container mx-auto px-4 py-8">
-	<div class="flex flex-col gap-6 max-w-[1000px] mx-auto">
-		<div class="flex items-center justify-between">
-			<h2 class="text-3xl font-bold">Create Strategic Objectives</h2>
-			{#if loading}
-				<div class="flex items-center gap-2 text-muted-foreground">
-					<Loader2 class="w-5 h-5 animate-spin" />
-					<span>Loading...</span>
+<div class="min-h-screen bg-gray-50 dark:bg-gray-900 p-4 md:p-8">
+	<div class="max-w-4xl mx-auto space-y-6">
+		<!-- Header -->
+		<div class="flex items-center justify-between bg-white dark:bg-gray-800 p-6 rounded-lg shadow-sm">
+			<div>
+				<h1 class="text-2xl font-bold text-gray-900 dark:text-white">Create Strategic Objectives</h1>
+				<p class="text-gray-600 dark:text-gray-400 mt-1">Define and manage your strategic objectives</p>
+			</div>
+			<Target class="w-8 h-8 text-blue-500" />
+		</div>
+
+		<!-- Steps -->
+		<div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-sm">
+			<div class="flex items-center justify-between mb-8">
+				<div class="flex-1">
+					<div class="relative">
+						<div class="h-2 bg-gray-200 rounded">
+							<div
+								class="h-2 bg-blue-500 rounded transition-all duration-300"
+								style="width: {currentStep === 1 ? '100%' : '0%'}"
+							></div>
+						</div>
+						<div class="flex justify-between absolute -top-3 w-full">
+							<span class="w-8 h-8 flex items-center justify-center bg-blue-500 rounded-full text-white text-sm">1</span>
+							<span
+								class="w-8 h-8 flex items-center justify-center rounded-full text-sm"
+								class:bg-blue-500={currentStep === 1}
+								class:text-white={currentStep === 1}
+								class:bg-gray-200={currentStep === 0}
+								class:text-gray-600={currentStep === 0}
+							>2</span>
+						</div>
+					</div>
+					<div class="flex justify-between mt-4">
+						<span class="text-sm font-medium text-gray-600">Select Goal</span>
+						<span class="text-sm font-medium text-gray-600">Add Objectives</span>
+					</div>
+				</div>
+			</div>
+
+			<!-- Alerts -->
+			{#if successMessage}
+				<div class="flex items-center gap-2 p-4 bg-green-100 text-green-700 rounded-lg mb-4">
+					<CheckCircle2 class="w-5 h-5" />
+					<span>{successMessage}</span>
 				</div>
 			{/if}
-		</div>
-
-		{#if successMessage}
-			<Toast type="success" message={successMessage} />
-		{/if}
-
-		{#if errorMessage}
-			<Toast type="error" message={errorMessage} />
-		{/if}
-
-		<div class="flex flex-col gap-2">
-			<label for="strategic_goal" class="text-lg font-medium">Select Strategic Goal</label>
-			<div class="relative">
-				<select id="strategic_goal" bind:value={selectedGoal} class="select bg-card p-3 rounded-lg w-full max-w-md border border-border/50 focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-colors appearance-none">
-					<option value={null}>Select a goal</option>
-					{#each strategicGoals as goal}
-						<option value={goal.id}>{goal.name}</option>
-					{/each}
-				</select>
-				<ChevronDown class="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground pointer-events-none" />
-			</div>
-		</div>
-
-		<div class="flex flex-col gap-4">
-			<div class="flex items-center justify-between">
-				<div class="flex gap-2">
-					{#each objectives as _, index}
-						<button onclick={() => (activeObjectiveIndex = index)} class="px-4 py-2 rounded-lg {activeObjectiveIndex === index ? 'bg-primary text-primary-foreground' : 'bg-secondary hover:bg-secondary/80'} transition-colors">
-							Objective {index + 1}
-						</button>
-					{/each}
+			{#if errorMessage}
+				<div class="flex items-center gap-2 p-4 bg-red-100 text-red-700 rounded-lg mb-4">
+					<AlertCircle class="w-5 h-5" />
+					<span>{errorMessage}</span>
 				</div>
-				<button onclick={addObjective} class="flex items-center gap-2 bg-secondary text-foreground px-4 py-2 rounded-lg hover:bg-secondary/80 transition-colors">
-					<PlusCircle class="w-5 h-5" />
-					Add Objective
-				</button>
-			</div>
+			{/if}
 
-			<div class="bg-card border border-border rounded-lg p-6">
-				<div class="flex justify-between items-center mb-6">
-					<h3 class="text-xl font-semibold">Objective {activeObjectiveIndex + 1}</h3>
-					{#if objectives.length > 1}
-						<button onclick={() => removeObjective(activeObjectiveIndex)} class="flex items-center gap-1.5 bg-destructive/10 text-destructive px-3 py-1.5 rounded-lg hover:bg-destructive/20 transition-colors">
-							<Trash2 class="w-4 h-4" />
-							<span>Delete</span>
-						</button>
-					{/if}
+			{#if currentStep === 0}
+				<!-- Strategic Goal Selector -->
+				<div class="space-y-4">
+					<label for="strategic_goal" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Select Strategic Goal</label>
+					<select
+						id="strategic_goal"
+						bind:value={selectedGoal}
+						class="w-full px-4 py-3 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500"
+					>
+						<option value={null}>Select a goal</option>
+						{#each strategicGoals as goal}
+							<option value={goal.id}>{goal.name}</option>
+						{/each}
+					</select>
+					<button
+						onclick={handleGoalSelection}
+						class="w-full flex items-center justify-center gap-2 px-4 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+					>
+						<Plus class="w-5 h-5" />
+						Continue to Add Objectives
+					</button>
 				</div>
-				<ObjectiveForm bind:objective={objectives[activeObjectiveIndex]} />
-			</div>
-		</div>
-
-		<button onclick={handleSubmit} disabled={submitting} class="flex items-center gap-2 bg-primary text-primary-foreground px-4 py-2 rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed w-fit">
-			{#if submitting}
-				<Loader2 class="w-5 h-5 animate-spin" />
-				<span>Submitting...</span>
 			{:else}
-				<Save class="w-5 h-5" />
-				<span>Submit Objectives</span>
+				<ObjectiveForm
+					{selectedGoal}
+					{profile}
+					onBack={handleBack}
+					onSuccess={(message) => {
+						successMessage = message;
+						currentStep = 0;
+						selectedGoal = null;
+					}}
+					onError={(message) => (errorMessage = message)}
+				/>
 			{/if}
-		</button>
+		</div>
 	</div>
 </div>
