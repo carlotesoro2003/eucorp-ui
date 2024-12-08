@@ -2,6 +2,7 @@
     import "tailwindcss/tailwind.css";
     import { onMount } from 'svelte';
     import { supabase } from '$lib/supabaseClient';
+    import Table from '$lib/components/department-table/Table.svelte';
   
     let departments: Array<{ id: number; name: string; full_name: string }> = [];
     let showDialog = false;
@@ -92,91 +93,6 @@
     };
   </script>
   
-  <div class="min-h-screen p-8">
-    <h1 class="text-3xl font-bold mb-6">Department List</h1>
-  
-    <!-- Alert -->
-    {#if showAlert}
-      <div class={`alert ${alertType === 'success' ? 'alert-success' : 'alert-error'} shadow-lg mb-6`}>
-        <span>{alertMessage}</span>
-      </div>
-    {/if}
-  
-    <!-- Table -->
-    <div class="overflow-x-auto bg-base-100 shadow-lg rounded-lg">
-      <table class="table w-full">
-        <thead>
-          <tr>
-            <th class="px-6 py-4">Department Name</th>
-            <th class="px-6 py-4">Full Name</th>
-            <th class="px-6 py-4">Actions</th>
-          </tr>
-        </thead>
-        <tbody>
-          {#each departments as department}
-            <tr class="hover border-b border-gray-700">
-              <td class="px-6 py-4 ">{department.name}</td>
-              <td class="px-6 py-4 ">{department.full_name}</td>
-              <td class="px-6 py-4 flex gap-4">
-                <button
-                  class="btn btn-sm bg-blue-600 hover:bg-blue-700  font-medium"
-                  on:click={() => openDialog(department)}
-                >
-                  Edit
-                </button>
-                <button
-                  class="btn  btn-sm bg-red-600 hover:bg-red-700  font-medium {isDeleting ? 'loading' : ''}"
-                  on:click={() => deleteDepartment(department.id)}
-                  disabled={isDeleting}
-                >
-                  {#if !isDeleting} Delete {/if}
-                </button>
-              </td>
-            </tr>
-          {/each}
-        </tbody>
-      </table>
-    </div>
-  
-    <!-- Add Department Button -->
-    <div class="mt-6">
-      <button class="btn bg-indigo-600 hover:bg-indigo-700 text-white font-medium" on:click={() => openDialog()}>Add Department</button>
-    </div>
-  
-    <!-- Dialog -->
-    {#if showDialog}
-      <div class="modal modal-open">
-        <div class="modal-box bg-base-200">
-          <h2 class="font-bold text-xl mb-4">{isEditing ? 'Edit Department' : 'Add Department'}</h2>
-  
-          <label for="department-name" class="block mb-2 text-white">Department Name</label>
-          <input
-            id="department-name"
-            type="text"
-            class="input input-bordered w-full mb-4"
-            bind:value={currentDepartment.name}
-          />
-  
-          <label for="full-name" class="block mb-2 text-white">Full Name</label>
-          <input
-            id="full-name"
-            type="text"
-            class="input input-bordered w-full mb-4"
-            bind:value={currentDepartment.full_name}
-          />
-  
-          <div class="modal-action">
-            <button
-              class="btn btn-success {isSaving ? 'loading' : ''}"
-              on:click={saveDepartment}
-              disabled={isSaving}
-            >
-              {#if !isSaving} Save {/if}
-            </button>
-            <button class="btn" on:click={closeDialog}>Cancel</button>
-          </div>
-        </div>
-      </div>
-    {/if}
-  </div>
-  
+  <main class="container mx-auto min-h-screen p-4">
+    <Table />
+  </main>

@@ -1,6 +1,7 @@
 <script lang="ts">
     import { supabase } from "$lib/supabaseClient";
     import { onMount } from "svelte";
+    import Table from "$lib/components/leads-table/Table.svelte";
 
     interface Leads {
         id: number;
@@ -98,97 +99,6 @@
     });
 </script>
 
-<div class="container mx-auto px-6">
-    <h2 class="text-2xl  font-bold mb-6">Leads</h2>
-
-    
-    <!-- Add Lead Button -->
-    <button on:click={openDialogForNewLead} class="mt-4 mb-4  btn bg-indigo-600 hover:bg-indigo-700 text-white">Add Lead</button>
-    
-
-    <!-- Success and Error Alerts -->
-    {#if successMessage}
-        <div class="alert alert-success shadow-lg mb-4">{successMessage}</div>
-    {/if}
-    {#if errorMessage}
-        <div class="alert alert-error shadow-lg mb-4">{errorMessage}</div>
-    {/if}
-
-    <!-- Table with Loading Spinner and No Data Message -->
-    {#if isLoading}
-        <button class="btn loading">Loading...</button>
-    {:else if leads.length === 0}
-        <div class="">No leads found.</div>
-    {:else} 
-        <div class="overflow-x-auto rounded-lg shadow-lg">
-            <table class="table w-full bg-base-100 text-left">
-                <thead>
-                    <tr class="bg-gray-800 ">
-                        <th class="px-6 py-3">Name</th>
-                        <th class="px-6 py-3">Actions</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {#each leads as lead}
-                        <tr class="hover:bg-gray-700">
-                            <td class="px-6 py-4">{lead.name}</td>
-                            <td class="px-6 py-4 flex gap-2">
-                                <button 
-                                    on:click={() => openDialogForEdit(lead)} 
-                                    class="btn btn-sm bg-blue-600 hover:bg-blue-700 text-white font-medium"
-                                >
-                                    Edit
-                                </button>
-                                <button 
-                                    on:click={() => deleteLead(lead.id)} 
-                                    class="btn btn-sm bg-red-600 hover:bg-red-700 text-white font-medium"
-                                >
-                                    Delete
-                                </button>
-                            </td>
-                        </tr>
-                    {/each}
-                </tbody>
-            </table>
-        </div>
-    {/if}
-
-
-    <!-- Dialog for Adding and Editing Leads -->
-    {#if showDialog}
-        <div class="modal modal-open">
-            <div class="modal-box bg-base-200">
-                <h3 class="font-bold text-lg">{isEditing ? "Edit Lead" : "Add Lead"}</h3>
-                <div class="py-4">
-                    <label for="lead-name" class="label text-white">Name</label>
-                    <input 
-                        id="lead-name" 
-                        type="text" 
-                        bind:value={formLead.name} 
-                        class="input input-bordered w-full" 
-                    />
-                </div>
-                <div class="modal-action">
-                    <button 
-                        on:click={closeDialog} 
-                        class="btn btn-secondary"
-                    >
-                        Cancel
-                    </button>
-                    <button 
-                        on:click={saveLead} 
-                        class="btn btn-success" 
-                        disabled={isSaving}
-                    >
-                        {#if isSaving}
-                            <span class="loading loading-spinner">Saving...</span>
-                        {:else}
-                            {isEditing ? "Update" : "Save"}
-                        {/if}
-                    </button>
-                </div>
-            </div>
-        </div>
-    {/if}
-</div>
-
+<main class="container mx-auto min-h-screen p-4">
+    <Table />
+  </main>

@@ -1,6 +1,7 @@
 <script lang="ts">
     import { supabase } from "$lib/supabaseClient";
     import { onMount } from "svelte";    
+    import Table from "$lib/components/riskManagement-table/Table.svelte";
 
     interface LikelihoodRating {
         id: number;
@@ -98,129 +99,6 @@
     });
 </script>
 
-<div class="min-h-screen p-8">
-    <h1 class="text-3xl font-bold  mb-6">Ratings Management</h1>
-
-    <!-- Dropdown Menu -->
-    <div class="container mx-auto p-4">
-        <label for="dataSelect" class="text-lg font-semibold  mr-4">Select Data Type:</label>
-        <div class="relative inline-block w-64">
-            <select
-                id="dataSelect"
-                bind:value={selectedDataType}
-                class="input input-bordered w-full appearance-none pr-10"
-            >
-                <option value="likelihoodRating">Likelihood Rating</option>
-                <option value="severity">Severity</option>
-                <option value="riskControlRating">Risk Control Rating</option>
-                <option value="riskMonitoringRating">Risk Monitoring Rating</option>
-            </select>
-            <!-- Downward Arrow -->
-            <div class="absolute inset-y-0 right-0 flex items-center px-2 pointer-events-none">
-                <svg
-                    class="w-5 h-5 text-gray-500"
-                    xmlns="http://www.w3.org/2000/svg"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                >
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
-                </svg>
-            </div>
-        </div>
-    </div>
-    
-
-    <!-- Loading Indicator -->
-    {#if isLoading}
-        <div class=" text-center">
-            <span class="loading loading-spinner loading-lg"></span> Loading...
-        </div>
-    {/if}
-
-    <!-- Error Message -->
-    {#if errorMessage}
-        <p class="text-red-500">{errorMessage}</p>
-    {/if}
-
-    <!-- Tables -->
-    <div class="overflow-x-auto shadow-lg rounded-lg">
-        <!-- Likelihood Rating Table -->
-        {#if selectedDataType === "likelihoodRating"}
-        <table class="table w-full">
-            <thead>
-                <tr>
-                    <th class="px-6 py-4">Name</th>
-                    <th class="px-6 py-4">Symbol</th>
-                </tr>
-            </thead>
-            <tbody>
-                {#each likelihoodRating as item}
-                <tr>
-                    <td class="px-6 py-4">{item.name}</td>
-                    <td class="px-6 py-4">{item.symbol}</td>
-                </tr>
-                {/each}
-            </tbody>
-        </table>
-        {/if}
-
-        <!-- Severity Table -->
-        {#if selectedDataType === "severity"}
-        <table class="table w-full">
-            <thead>
-                <tr class="bg-gray-500 ">
-                    <th class="px-6 py-4">Name</th>
-                    <th class="px-6 py-4">Value</th>
-                </tr>
-            </thead>
-            <tbody>
-                {#each severity as item}
-                <tr>
-                    <td class="px-6 py-4">{item.name}</td>
-                    <td class="px-6 py-4">{item.value}</td>
-                </tr>
-                {/each}
-            </tbody>
-        </table>
-        {/if}
-
-        <!-- Risk Control Rating Table -->
-        {#if selectedDataType === "riskControlRating"}
-        <table class="table w-full">
-            <thead>
-                <tr class="bg-gray-800 ">
-                    <th class="px-6 py-4">Name</th>
-                    <th class="px-6 py-4">Symbol</th>
-                </tr>
-            </thead>
-            <tbody>
-                {#each riskControlRating as item}
-                <tr class="hover:bg-gray-700 border-b border-gray-700">
-                    <td class="px-6 py-4">{item.name}</td>
-                    <td class="px-6 py-4">{item.symbol}</td>
-                </tr>
-                {/each}
-            </tbody>
-        </table>
-        {/if}
-
-        <!-- Risk Monitoring Rating Table -->
-        {#if selectedDataType === "riskMonitoringRating"}
-        <table class="table w-full">
-            <thead>
-                <tr>
-                    <th class="px-6 py-4">Status</th>
-                </tr>
-            </thead>
-            <tbody>
-                {#each riskMonitoringRating as item}
-                <tr>
-                    <td class="px-6 py-4">{item.status}</td>
-                </tr>
-                {/each}
-            </tbody>
-        </table>
-        {/if}
-    </div>
-</div>
+<main class="container mx-auto min-h-screen p-4">
+    <Table />
+  </main>
