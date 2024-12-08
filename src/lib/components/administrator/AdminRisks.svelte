@@ -14,6 +14,10 @@
     budget: number;
     profile_id: string;
     is_approved: boolean;
+    is_approved_vp: boolean;
+    is_approved_president: boolean;
+    user_name: string | null;
+    department_name: string | null;
   }
 
   interface Classification {
@@ -21,407 +25,480 @@
     name: string;
   }
 
+  interface RiskAssessment {
+    id: number;
+    risk_id: string;
+    lr: number | null;
+    s: number | null;
+    rcr: number | null;
+    rmr: number | null;
+  }
+
+  interface Department {
+    id: string;
+    name: string;
+  }
+
+  let risks: Risk[] = [];
+  let displayedRisks: Risk[] = [];
+  let riskAssessments: RiskAssessment[] = [];
+  let classification: Classification[] = [];
   interface LikelihoodRating {
     id: number;
     name: string;
-    symbol: string;
   }
 
+  let likelihoodRatings: LikelihoodRating[] = [];
   interface Severity {
     id: number;
-    name: string;
-    value: number;
+    value: string;
   }
 
+  let severities: Severity[] = [];
   interface RiskControlRating {
     id: number;
     name: string;
-    symbol: string;
   }
 
+  let riskControlRatings: RiskControlRating[] = [];
   interface RiskMonitoringRating {
     id: number;
     status: string;
   }
 
-  interface RiskAssessment {
-    id: number;
-    lr: number | null;
-    s: number | null;
-    rcr: number | null;
-    rmr: number | null;
-    risk_id: string;
-  }
+  let riskMonitoringRatings: RiskMonitoringRating[] = [];
+  let departments: Department[] = [];
+  let selectedDepartment: string | "all" = "all";
 
-  let risks: Risk[] = [];
-  let classification: Classification[] = [];
-  let likelihoodRating: LikelihoodRating[] = [];
-  let severity: Severity[] = [];
-  let riskControlRating: RiskControlRating[] = [];
-  let riskMonitoringRating: RiskMonitoringRating[] = [];
-  let riskAssessment: RiskAssessment[] = [];
   let isLoading = true;
-  let loadingRiskAssessments = true;
-
+  let isApproving = false;
   let deletingRiskId: string | null = null;
 
-  let successMessage: string | null = null;
-  let errorMessage: string | null = null;
+  let userRole: string | null = null;
+  let adminName: string | null = null;
+  let vicePresidentName: string | null = null;
+  let presidentName: string | null = null;
+
+  const fetchCurrentUserRole = async () => {
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+
+    if (!session || !session.user) return;
+
+    const { data: profile, error } = await supabase
+      .from("profiles")
+      .select("role, first_name, last_name")
+      .eq("id", session.user.id)
+      .single();
+
+    if (error) {
+      console.error("Error fetching user role:", error);
+      return;
+    }
+
+    userRole = profile.role;
+
+    if (userRole === "admin") {
+      adminName = `${profile.first_name} ${profile.last_name}`;
+    }
+  };
+
+
+  const fetchAdminName = async () => {
+      try {
+        const { data, error } = await supabase
+          .from("profiles")
+          .select("first_name, last_name")
+          .eq("role", "admin");
+
+        if (error || !data) {
+          console.error("Error fetching admin names:", error || "No data found");
+          adminName = "N/A"; // Fallback if no admins are found
+        } else {
+          // Combine all admin names into a single string
+          adminName = data.map((admin) => `${admin.first_name} ${admin.last_name}`).join(", ");
+        }
+      } catch (error) {
+        console.error("Error fetching admin details:", error);
+        adminName = "N/A";
+      }
+  };
+
+  const fetchVPAndPresidentNames = async () => {
+      try {
+        const { data, error } = await supabase
+          .from("profiles")
+          .select("first_name, last_name, role")
+          .in("role", ["vice_president", "president"]);
+
+        if (error || !data) {
+          console.error("Error fetching VP and President names:", error || "No data found");
+          vicePresidentName = "N/A";
+          presidentName = "N/A";
+          return;
+        }
+
+        const vp = data.find((user) => user.role === "vice_president");
+        const president = data.find((user) => user.role === "president");
+
+        vicePresidentName = vp ? `${vp.first_name} ${vp.last_name}` : "N/A";
+        presidentName = president ? `${president.first_name} ${president.last_name}` : "N/A";
+      } catch (error) {
+        console.error("Error fetching VP and President details:", error);
+        vicePresidentName = "N/A";
+        presidentName = "N/A";
+      }
+    };
+
+
+  const fetchDepartments = async () => {
+    const { data, error } = await supabase.from("departments").select("id, name");
+
+    if (error) {
+      console.error("Error fetching departments:", error);
+      return;
+    }
+
+    departments = data || [];
+  };
 
   const fetchRisks = async () => {
     isLoading = true;
-    try {
-      const { data, error } = await supabase
-        .from("risks")
-        .select("*")
-        .order("rrn", { ascending: true });
 
-      if (error) throw error;
+    const { data, error } = await supabase
+      .from("risks")
+      .select(`*, profiles (first_name, last_name, departments (name))`);
 
-      risks = data.sort((a, b) => {
-        const getNumericPart = (rrn: string) => {
-          const match = rrn.match(/(\d+)$/);
-          return match ? parseInt(match[0], 10) : 0;
-        };
-        return getNumericPart(a.rrn) - getNumericPart(b.rrn);
-      });
-    } catch (error) {
+    if (error) {
       console.error("Error fetching risks:", error);
-      errorMessage = "Failed to fetch risks.";
-    } finally {
-      isLoading = false;
+      return;
     }
+
+    risks = data.map((risk: any) => ({
+      ...risk,
+      user_name: `${risk.profiles?.first_name || ""} ${risk.profiles?.last_name || ""}`,
+      department_name: risk.profiles?.departments?.name || "N/A",
+    }));
+
+    applyFilters();
+    isLoading = false;
+  };
+
+  const fetchRiskAssessments = async () => {
+    const { data, error } = await supabase.from("risk_assessment").select("*");
+
+    if (error) {
+      console.error("Error fetching risk assessments:", error);
+      return;
+    }
+
+    riskAssessments = data || [];
   };
 
   const fetchClassification = async () => {
-    try {
-      const { data, error } = await supabase.from("classification").select("*");
-      if (error) throw error;
-      classification = data;
-    } catch (error) {
-      console.error("Error fetching classification:", error);
-      errorMessage = "Failed to fetch classification.";
-    }
+    const { data, error } = await supabase.from("classification").select("*");
+    if (!error) classification = data || [];
   };
 
-  const fetchRiskAssessment = async () => {
-    loadingRiskAssessments = true;
-    try {
-      const { data, error } = await supabase
-        .from("risk_assessment")
-        .select("*");
-      if (error) throw error;
-      riskAssessment = data;
-    } catch (error) {
-      console.error("Error fetching risk assessment:", error);
-      errorMessage = "Failed to fetch risk assessment.";
-    } finally {
-      loadingRiskAssessments = false;
-    }
+  const fetchLikelihoodRatings = async () => {
+    const { data, error } = await supabase.from("likelihood_rating").select("*");
+    if (!error) likelihoodRatings = data || [];
   };
 
-  const fetchLikelihoodRating = async () => {
-    const { data, error } = await supabase
-      .from("likelihood_rating")
-      .select("*");
-    if (!error) likelihoodRating = data;
-  };
-
-  const fetchSeverity = async () => {
+  const fetchSeverities = async () => {
     const { data, error } = await supabase.from("severity").select("*");
-    if (!error) severity = data;
+    if (!error) severities = data || [];
   };
 
-  const fetchRiskControlRating = async () => {
-    const { data, error } = await supabase
-      .from("risk_control_rating")
-      .select("*");
-    if (!error) riskControlRating = data;
+  const fetchRiskControlRatings = async () => {
+    const { data, error } = await supabase.from("risk_control_rating").select("*");
+    if (!error) riskControlRatings = data || [];
   };
 
-  const fetchRiskMonitoringRating = async () => {
-    const { data, error } = await supabase
-      .from("risk_monitoring_rating")
-      .select("*");
-    if (!error) riskMonitoringRating = data;
+  const fetchRiskMonitoringRatings = async () => {
+    const { data, error } = await supabase.from("risk_monitoring_rating").select("*");
+    if (!error) riskMonitoringRatings = data || [];
   };
 
-  // Helper functions to retrieve names from IDs with fallbacks
-  const getLikelihoodRatingName = (id: number | null) =>
-    likelihoodRating.find((item) => item.id === id)?.symbol || "Not Available";
+  
 
-  const getSeverityName = (id: number | null) =>
-    severity.find((item) => item.id === id)?.value || "Not Available";
+  const approveRisk = async (id: string) => {
+    isApproving = true;
 
-  const getRiskControlRatingName = (id: number | null) =>
-    riskControlRating.find((item) => item.id === id)?.symbol || "Not Available";
+    let updateField = {};
+    if (userRole === "admin") {
+      updateField = { is_approved: true };
+    } else if (userRole === "vice_president") {
+      updateField = { is_approved_vp: true };
+    } else if (userRole === "president") {
+      updateField = { is_approved_president: true };
+    }
 
-  const getRiskMonitoringRatingStatus = (id: number | null) =>
-    riskMonitoringRating.find((item) => item.id === id)?.status ||
-    "Not Available";
+    const { error } = await supabase.from("risks").update(updateField).eq("id", id);
 
-  const getRiskAssessmentForRisk = (riskId: string) =>
-    riskAssessment.filter((assessment) => assessment.risk_id === riskId);
+    if (error) {
+      console.error("Error approving risk:", error);
+    } else {
+      await fetchRisks();
+    }
+
+    isApproving = false;
+  };
+
+  const deleteRisk = async (id: string) => {
+    deletingRiskId = id;
+
+    const { error } = await supabase.from("risks").delete().eq("id", id);
+
+    if (error) {
+      console.error("Error deleting risk:", error);
+    } else {
+      await fetchRisks();
+    }
+
+    deletingRiskId = null;
+  };
+
+  const applyFilters = () => {
+    if (selectedDepartment === "all") {
+      displayedRisks = risks;
+    } else {
+      displayedRisks = risks.filter(
+        (risk) => risk.department_name === selectedDepartment
+      );
+    }
+  };
 
   const exportToPDF = () => {
-    const doc = new jsPDF("landscape");
+  const doc = new jsPDF("landscape");
+  const title = "Risk Report";
+  const columns = [
+    "Risk Statement",
+    "Classification",
+    "Likelihood",
+    "Severity",
+    "Control Rating",
+    "Monitoring Rating",
+    "Approval Status",
+    "Department",
+  ];
 
-    doc.setFontSize(12);
-    doc.text("Risk and Risk Assessment Data", 14, 15);
-
-    autoTable(doc, {
-      startY: 20,
-      head: [
+  const rows = displayedRisks.flatMap((risk) => {
+    const assessments = riskAssessments.filter((a) => a.risk_id === risk.id);
+    if (assessments.length === 0) {
+      return [
         [
-          "RRN",
-          "Risk Statement",
-          "Classification",
-          "Likelihood",
-          "Severity",
-          "Control Rating",
-          "Monitoring Rating",
-        ],
-      ],
-      body: risks.flatMap((risk) => {
-        const assessments = getRiskAssessmentForRisk(risk.id);
-        if (assessments.length === 0) {
-          return [
-            [
-              risk.rrn,
-              risk.risk_statement,
-              classification.find((cls) => cls.id === risk.classification)
-                ?.name || "N/A",
-              "No Data",
-              "No Data",
-              "No Data",
-              "No Data",
-            ],
-          ];
-        }
-
-        return assessments.map((assessment) => [
-          risk.rrn,
           risk.risk_statement,
-          classification.find((cls) => cls.id === risk.classification)?.name ||
-            "N/A",
-          getLikelihoodRatingName(assessment.lr),
-          getSeverityName(assessment.s),
-          getRiskControlRatingName(assessment.rcr),
-          getRiskMonitoringRatingStatus(assessment.rmr),
-        ]);
-      }),
-    });
-
-    doc.save("Risks_Assessment_Data.pdf");
-  };
-
-  const deleteRisk = async (riskId: string) => {
-    deletingRiskId = riskId;
-    try {
-      const { error } = await supabase.from("risks").delete().eq("id", riskId);
-
-      if (error) {
-        errorMessage = "Failed to delete risk.";
-        return;
-      }
-
-      risks = risks.filter((risk) => risk.id !== riskId);
-      successMessage = "Risk deleted successfully!";
-    } catch (error) {
-      errorMessage = "An unexpected error occurred.";
-    } finally {
-      deletingRiskId = null;
+          classification.find((cls) => cls.id === risk.classification)?.name || "N/A",
+          "N/A",
+          "N/A",
+          "N/A",
+          "N/A",
+          risk.is_approved
+            ? "Admin Approved"
+            : risk.is_approved_vp
+            ? "VP Approved"
+            : risk.is_approved_president
+            ? "President Approved"
+            : "Pending",
+          risk.department_name || "N/A",
+        ],
+      ];
     }
-  };
 
-  // Function to approve a risk
-  const approveRisk = async (riskId: string) => {
-    try {
-      // Fetch the risk details
-      const { data: risk, error: fetchError } = await supabase
-        .from("risks")
-        .select("id, rrn, risk_statement, profile_id")
-        .eq("id", riskId)
-        .single();
+    return assessments.map((a) => [
+      risk.risk_statement,
+      classification.find((cls) => cls.id === risk.classification)?.name || "N/A",
+      likelihoodRatings.find((lr) => lr.id === a.lr)?.name || "N/A",
+      severities.find((s) => s.id === a.s)?.value || "N/A",
+      riskControlRatings.find((rcr) => rcr.id === a.rcr)?.name || "N/A",
+      riskMonitoringRatings.find((rmr) => rmr.id === a.rmr)?.status || "N/A",
+      risk.is_approved
+        ? "Admin Approved"
+        : risk.is_approved_vp
+        ? "VP Approved"
+        : risk.is_approved_president
+        ? "President Approved"
+        : "Pending",
+      risk.department_name || "N/A",
+    ]);
+  });
 
-      if (fetchError || !risk) {
-        throw new Error("Failed to fetch risk details.");
-      }
+  // Add the title
+  doc.setFontSize(14);
+  doc.text(title, 14, 15);
 
-      // Fetch the department_id from the profile
-      const { data: profile, error: profileError } = await supabase
-        .from("profiles")
-        .select("department_id")
-        .eq("id", risk.profile_id)
-        .single();
+  // Add the table
+  autoTable(doc, {
+    head: [columns],
+    body: rows,
+    startY: 25,
+    theme: "grid",
+    styles: { fontSize: 10 },
+    headStyles: { fillColor: [41, 128, 185] },
+  });
 
-      if (profileError || !profile) {
-        throw new Error("Failed to fetch profile details.");
-      }
+  // Prepare space for signatures
+  const pageHeight = doc.internal.pageSize.height;
+  const signatureStartY = pageHeight - 40; // Adjust to start above the margin
 
-      const departmentId = profile.department_id;
+  // Calculate column positions for even spacing
+  const columnWidth = doc.internal.pageSize.width / 4;
+  const positions = [14, columnWidth, columnWidth * 2, columnWidth * 3];
 
-      // Fetch the related risk assessment details
-      const { data: riskAssessment, error: assessmentError } = await supabase
-        .from("risk_assessment")
-        .select("*")
-        .eq("risk_id", riskId);
+  // Signatures Layout
+  doc.setFontSize(10);
 
-      if (assessmentError || !riskAssessment || riskAssessment.length === 0) {
-        throw new Error("Failed to fetch risk assessment details.");
-      }
+  const firstRisk = displayedRisks[0];
+  const userName = firstRisk?.user_name || "Unknown";
+  const departmentName = firstRisk?.department_name || "Unknown";
 
-      // Insert into the risk_monitoring table
-      const { error: insertError } = await supabase
-        .from("risk_monitoring")
-        .insert({
-          risk_id: riskId,
-          department_id: departmentId,
-          likelihood_rating_id: riskAssessment[0].lr, // Likelihood Rating ID
-          severity_id: riskAssessment[0].s, // Severity ID
-          control_rating_id: riskAssessment[0].rcr, // Control Rating ID
-          monitoring_rating_id: riskAssessment[0].rmr, // Monitoring Rating ID
-        });
+  // User Signature (Department Head)
+  doc.text(`${userName || "Unknown"} (sgnd)`, positions[0], signatureStartY - 5);
+  doc.text("_________________________", positions[0], signatureStartY);
+  doc.text(`${departmentName || "Unknown"} Department Head`, positions[0], signatureStartY + 5);
 
-      if (insertError) {
-        throw new Error("Failed to insert into risk_monitoring table.");
-      }
+  // Admin (Corporate Planning Officer)
+  doc.text(`${adminName || "N/A"} (sgnd)`, positions[1], signatureStartY - 5);
+  doc.text("_________________________", positions[1], signatureStartY);
+  doc.text("Corporate Planning Officer", positions[1], signatureStartY + 5);
 
-      // Update the risk as approved
-      const { error: updateError } = await supabase
-        .from("risks")
-        .update({ is_approved: true })
-        .eq("id", riskId);
+  // Vice President
+  doc.text(
+    `${vicePresidentName || "N/A"} (sgnd)`,
+    positions[2],
+    signatureStartY - 5
+  );
+  doc.text("_________________________", positions[2], signatureStartY);
+  doc.text("Vice President", positions[2], signatureStartY + 5);
 
-      if (updateError) {
-        throw new Error("Failed to update risk approval status.");
-      }
+  // President
+  doc.text(
+    `${presidentName || "N/A"} (sgnd)`,
+    positions[3],
+    signatureStartY - 5
+  );
+  doc.text("_________________________", positions[3], signatureStartY);
+  doc.text("President", positions[3], signatureStartY + 5);
 
-      // Update local risks state
-      risks = risks.map((r) =>
-        r.id === riskId ? { ...r, is_approved: true } : r
-      );
+  // Save the PDF file
+  doc.save("Risk_Report.pdf");
+};
 
-      successMessage = `Risk approved successfully with risk assessment included!`;
-    } catch (error) {
-      console.error("Error approving risk:", error);
-      errorMessage = "Failed to approve risk.";
-    }
-  };
 
-  // Fetch all data on mount
-  onMount(() => {
-    Promise.all([
-      fetchRisks(),
-      fetchClassification(),
-      fetchLikelihoodRating(),
-      fetchSeverity(),
-      fetchRiskControlRating(),
-      fetchRiskMonitoringRating(),
-      fetchRiskAssessment(),
-    ]).catch((error) => {
-      console.error("Error fetching data:", error);
-      errorMessage = "Failed to fetch some data.";
-    });
+  onMount(async () => {
+    await fetchCurrentUserRole();
+    await fetchDepartments();
+    await fetchRisks();
+    await fetchRiskAssessments();
+    await fetchClassification();
+    await fetchLikelihoodRatings();
+    await fetchSeverities();
+    await fetchRiskControlRatings();
+    await fetchRiskMonitoringRatings();
+    await fetchAdminName();
+    await fetchVPAndPresidentNames();
   });
 </script>
 
-<div class="container mx-auto my-6">
-  <div class="mb-4">
-    <button class="btn btn-primary" on:click={exportToPDF}>
+<div class="container mx-auto p-6">
+  <h2 class="text-2xl font-bold mb-6">Risk Management</h2>
+
+  <div class="flex gap-4 mb-4">
+    <select
+      class="select select-bordered"
+      bind:value={selectedDepartment}
+      on:change={applyFilters}
+    >
+      <option value="all">All Departments</option>
+      {#each departments as department}
+        <option value={department.name}>{department.name}</option>
+      {/each}
+    </select>
+    <button class="btn btn-secondary" on:click={exportToPDF}>
       Export to PDF
     </button>
   </div>
 
   {#if isLoading}
-    <div class="text-center text-xl">
-      <span class="loading loading-spinner loading-md"></span>
-    </div>
+    <div>Loading risks...</div>
+  {:else if displayedRisks.length === 0}
+    <div>No risks available.</div>
   {:else}
-    {#if errorMessage}
-      <div class="alert alert-error">{errorMessage}</div>
-    {/if}
-
-    {#if successMessage}
-      <div class="alert alert-success">{successMessage}</div>
-    {/if}
-
-    <div class="overflow-x-auto">
-      <table class="table w-full">
-        <thead>
+    <table class="table w-full">
+      <thead>
+        <tr>
+          <th>Risk Statement</th>
+          <th>Classification</th>
+          <th>Actions</th>
+          <th>Key Persons</th>
+          <th>Budget</th>
+          <th>Risk Assessments</th>
+          <th>Approval Status</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {#each displayedRisks as risk}
           <tr>
-            <th>RRN</th>
-            <th>Risk Statement</th>
-            <th>Classification</th>
-            <th>Actions</th>
-            <th>Key Persons</th>
-            <th>Budget</th>
-            <th>Risk Assessments</th>
-            <th>Actions</th>
+            <td>{risk.risk_statement}</td>
+            <td>
+              {classification.find((cls) => cls.id === risk.classification)?.name || "N/A"}
+            </td>
+            <td>{risk.actions}</td>
+            <td>{risk.key_persons}</td>
+            <td>{risk.budget}</td>
+            <td>
+              {#each riskAssessments.filter((a) => a.risk_id === risk.id) as assessment}
+                <div>
+                  <strong>Likelihood:</strong> 
+                  {likelihoodRatings.find((lr) => lr.id === assessment.lr)?.name || "N/A"}<br />
+                  <strong>Severity:</strong> 
+                  {severities.find((s) => s.id === assessment.s)?.value || "N/A"}<br />
+                  <strong>Control Rating:</strong> 
+                  {riskControlRatings.find((rcr) => rcr.id === assessment.rcr)?.name || "N/A"}<br />
+                  <strong>Monitoring Rating:</strong> 
+                  {riskMonitoringRatings.find((rmr) => rmr.id === assessment.rmr)?.status || "N/A"}
+                </div>
+              {/each}
+            </td>
+            <td class="flex gap-2">
+              <button
+                class="btn btn-sm btn-success"
+                on:click={() => approveRisk(risk.id)}
+                disabled={
+                  isApproving ||
+                  (userRole === "admin" && risk.is_approved) || // Admin cannot re-approve
+                  (userRole === "vice_president" && (!risk.is_approved || risk.is_approved_vp)) || // VP cannot approve without Admin approval or if already approved
+                  (userRole === "president" && (!risk.is_approved_vp || risk.is_approved_president)) 
+                }
+              >
+                {userRole === "admin"
+                  ? risk.is_approved
+                    ? "Admin Approved"
+                    : "Approve as Admin"
+                  : userRole === "vice_president"
+                  ? risk.is_approved_vp
+                    ? "VP Approved"
+                    : "Approve as VP"
+                  : userRole === "president"
+                  ? risk.is_approved_president
+                    ? "President Approved"
+                    : "Approve as President"
+                  : "Approve"}
+              </button>
+              <button
+                class="btn btn-sm btn-error"
+                on:click={() => deleteRisk(risk.id)}
+                disabled={deletingRiskId === risk.id}
+              >
+                {deletingRiskId === risk.id ? "Deleting..." : "Delete"}
+              </button>
+            </td>
           </tr>
-        </thead>
-        <tbody>
-          {#each risks as risk}
-            <tr>
-              <td>{risk.rrn}</td>
-              <td>{risk.risk_statement}</td>
-              <td>
-                {classification.find((cls) => cls.id === risk.classification)
-                  ?.name || "N/A"}
-              </td>
-              <td>{risk.actions}</td>
-              <td>{risk.key_persons}</td>
-              <td>${risk.budget}</td>
-              <td>
-                {#if loadingRiskAssessments}
-                  Loading...
-                {:else}
-                  {#each getRiskAssessmentForRisk(risk.id) as assessment}
-                    <div>
-                      <strong>Likelihood:</strong>
-                      {getLikelihoodRatingName(assessment.lr)}
-                      <br />
-                      <strong>Severity:</strong>
-                      {getSeverityName(assessment.s)}
-                      <br />
-                      <strong>Control Rating:</strong>
-                      {getRiskControlRatingName(assessment.rcr)}
-                      <br />
-                      <strong>Monitoring Rating:</strong>
-                      {getRiskMonitoringRatingStatus(assessment.rmr)}
-                    </div>
-                  {/each}
-                  {#if getRiskAssessmentForRisk(risk.id).length === 0}
-                    No assessment data available.
-                  {/if}
-                {/if}
-              </td>
-              <td>
-                <button
-                  class="btn btn-sm btn-success"
-                  on:click={() => approveRisk(risk.id)}
-                  disabled={risk.is_approved}
-                >
-                  {risk.is_approved ? "Approved" : "Approve Risk"}
-                </button>
-              </td>
-              <td>
-                <button
-                  class="btn btn-error btn-sm"
-                  on:click={() => deleteRisk(risk.id)}
-                  disabled={deletingRiskId === risk.id}
-                >
-                  {#if deletingRiskId === risk.id}
-                    Deleting...
-                  {:else}
-                    Delete
-                  {/if}
-                </button>
-              </td>
-            </tr>
-          {/each}
-        </tbody>
-      </table>
-    </div>
+        {/each}
+      </tbody>
+    </table>
   {/if}
 </div>

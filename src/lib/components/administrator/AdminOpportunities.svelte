@@ -37,6 +37,7 @@
 
   onMount(async () => {
     await fetchCurrentUserRole();
+    await fetchAdminName();
     await fetchOpportunities();
     await fetchDepartments();
     await fetchVPAndPresidentNames();
@@ -61,10 +62,6 @@
     }
 
     userRole = profile.role;
-
-    if (userRole === "admin") {
-      adminName = `${profile.first_name} ${profile.last_name}`;
-    }
   };
 
   const fetchOpportunities = async () => {
@@ -109,23 +106,52 @@
     departments = data;
   };
 
-  const fetchVPAndPresidentNames = async () => {
-    const { data, error } = await supabase
-      .from("profiles")
-      .select("role, first_name, last_name")
-      .in("role", ["vice_president", "president"]);
+  const fetchAdminName = async () => {
+      try {
+        const { data, error } = await supabase
+          .from("profiles")
+          .select("first_name, last_name")
+          .eq("role", "admin");
 
-    if (error) {
-      console.error("Error fetching VP and President names:", error);
-      return;
-    }
-
-    const vp = data.find((profile) => profile.role === "vice_president");
-    const president = data.find((profile) => profile.role === "president");
-
-    vicePresidentName = vp ? `${vp.first_name} ${vp.last_name}` : "N/A";
-    presidentName = president ? `${president.first_name} ${president.last_name}` : "N/A";
+        if (error || !data) {
+          console.error("Error fetching admin names:", error || "No data found");
+          adminName = "N/A"; // Fallback if no admins are found
+        } else {
+          // Combine all admin names into a single string
+          adminName = data.map((admin) => `${admin.first_name} ${admin.last_name}`).join(", ");
+        }
+      } catch (error) {
+        console.error("Error fetching admin details:", error);
+        adminName = "N/A";
+      }
   };
+
+
+    const fetchVPAndPresidentNames = async () => {
+      try {
+        const { data, error } = await supabase
+          .from("profiles")
+          .select("first_name, last_name, role")
+          .in("role", ["vice_president", "president"]);
+
+        if (error || !data) {
+          console.error("Error fetching VP and President names:", error || "No data found");
+          vicePresidentName = "N/A";
+          presidentName = "N/A";
+          return;
+        }
+
+        const vp = data.find((user) => user.role === "vice_president");
+        const president = data.find((user) => user.role === "president");
+
+        vicePresidentName = vp ? `${vp.first_name} ${vp.last_name}` : "N/A";
+        presidentName = president ? `${president.first_name} ${president.last_name}` : "N/A";
+      } catch (error) {
+        console.error("Error fetching VP and President details:", error);
+        vicePresidentName = "N/A";
+        presidentName = "N/A";
+      }
+    };
 
   const applyFilters = () => {
     let filteredOpportunities = [...opportunities];
@@ -196,7 +222,7 @@
     isApproving = false;
   };
 
-  const exportToPDF = () => {
+const exportToPDF = () => {
   const doc = new jsPDF("landscape");
   const title = "Opportunities Report";
   const columns = [
@@ -236,48 +262,44 @@
 
   // Prepare space for signatures
   const pageHeight = doc.internal.pageSize.height;
-  const signatureStartY = pageHeight - 30;
+  const signatureStartY = pageHeight - 40; // Adjusted to avoid overlapping with table footer
+
+  // Calculate column positions for even spacing
+  const columnWidth = doc.internal.pageSize.width / 4;
+  const positions = [14, columnWidth, columnWidth * 2, columnWidth * 3];
 
   // Ensure the first opportunity exists to extract user and department details
   const firstOpportunity = displayedOpportunities[0];
   const userName = firstOpportunity?.user_name || "Unknown";
   const departmentName = firstOpportunity?.department_name || "Unknown";
 
-  // User Signature
-  doc.text(`${userName} (sgnd)`, 14, signatureStartY - 5);
-  doc.text("_________________________", 14, signatureStartY);
-  doc.text(`${departmentName} Department Head`, 14, signatureStartY + 5);
+  // Add signature layout
+  doc.setFontSize(10);
+
+  // Department Head
+  doc.text(`${userName} (sgnd)`, positions[0], signatureStartY - 5);
+  doc.text("_________________________", positions[0], signatureStartY);
+  doc.text(`${departmentName} Department Head`, positions[0], signatureStartY + 5);
 
   // Corporate Planning Officer
-  doc.text(`${adminName || "N/A"} (sgnd)`, 100, signatureStartY - 5);
-  doc.text("_________________________", 100, signatureStartY);
-  doc.text("Corporate Planning Officer", 100, signatureStartY + 5);
+  doc.text(`${adminName || "N/A"} (sgnd)`, positions[1], signatureStartY - 5);
+  doc.text("_________________________", positions[1], signatureStartY);
+  doc.text("Corporate Planning Officer", positions[1], signatureStartY + 5);
 
   // Vice President
-  const vpSigned = displayedOpportunities.some((opportunity) => opportunity.is_approved_vp);
-  doc.text(
-    vpSigned ? `${vicePresidentName || "N/A"} (sgnd)` : `${vicePresidentName || "N/A"}`,
-    180,
-    signatureStartY - 5
-  );
-  doc.text("_________________________", 180, signatureStartY);
-  doc.text("Vice President", 180, signatureStartY + 5);
+  doc.text(`${vicePresidentName || "N/A"} (sgnd)`, positions[2], signatureStartY - 5);
+  doc.text("_________________________", positions[2], signatureStartY);
+  doc.text("Vice President", positions[2], signatureStartY + 5);
 
   // President
-  const presidentSigned = displayedOpportunities.some(
-    (opportunity) => opportunity.is_approved_president
-  );
-  doc.text(
-    presidentSigned ? `${presidentName || "N/A"} (sgnd)` : `${presidentName || "N/A"}`,
-    260,
-    signatureStartY - 5
-  );
-  doc.text("_________________________", 260, signatureStartY);
-  doc.text("President", 260, signatureStartY + 5);
+  doc.text(`${presidentName || "N/A"} (sgnd)`, positions[3], signatureStartY - 5);
+  doc.text("_________________________", positions[3], signatureStartY);
+  doc.text("President", positions[3], signatureStartY + 5);
 
   // Save the PDF file
   doc.save("Opportunities_Report.pdf");
 };
+
 
 </script>
 
