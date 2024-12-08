@@ -35,6 +35,10 @@
   let vicePresidentName: string | null = null;
   let presidentName: string | null = null;
 
+  let isEditModalOpen = false;
+  let currentOpportunity: Opportunity | null = null;
+
+
   onMount(async () => {
     await fetchCurrentUserRole();
     await fetchAdminName();
@@ -166,9 +170,38 @@
   };
 
   const editOpportunity = (opportunity: Opportunity) => {
-    // Logic to open and populate edit modal (not included)
-    console.log("Editing Opportunity:", opportunity);
+    currentOpportunity = { ...opportunity }; // Clone the opportunity to avoid direct mutation
+    isEditModalOpen = true;
   };
+
+  const saveOpportunity = async () => {
+    if (!currentOpportunity) return;
+
+    isSaving = true;
+    const { error } = await supabase
+      .from("opportunities")
+      .update({
+        opt_statement: currentOpportunity.opt_statement,
+        planned_actions: currentOpportunity.planned_actions,
+        kpi: currentOpportunity.kpi,
+        key_persons: currentOpportunity.key_persons,
+        target_output: currentOpportunity.target_output,
+        budget: currentOpportunity.budget,
+      })
+      .eq("id", currentOpportunity.id);
+
+    if (error) {
+      console.error("Error updating opportunity:", error);
+    } else {
+      await fetchOpportunities(); // Refresh the list of opportunities
+      isEditModalOpen = false;
+      currentOpportunity = null;
+    }
+
+    isSaving = false;
+  };
+
+
 
   const deleteOpportunity = async (id: number) => {
     isDeleting = true;
@@ -222,11 +255,21 @@
     isApproving = false;
   };
 
-const exportToPDF = () => {
+  const exportToPDF = () => {
   const doc = new jsPDF("landscape");
-  const title = "Opportunities Report";
+
+  // Set font to Times New Roman (or similar serif font)
+  doc.setFont("times", "normal");
+
+  // Title and Header Information
+  doc.setFontSize(12);
+  doc.text("MANUEL S. ENVERGA UNIVERSITY FOUNDATION", 14, 10);
+  doc.text("Opportunities Report", 14, 16);
+  doc.setFontSize(10);
+  doc.text("SY 2022-2023", 14, 22);
+
+  // Table Columns
   const columns = [
-    "User Name",
     "Opportunity Statement",
     "Planned Actions",
     "KPI",
@@ -235,8 +278,9 @@ const exportToPDF = () => {
     "Budget",
     "Department",
   ];
+
+  // Table Rows
   const rows = displayedOpportunities.map((opportunity) => [
-    opportunity.user_name || "Unknown",
     opportunity.opt_statement,
     opportunity.planned_actions,
     opportunity.kpi,
@@ -246,37 +290,35 @@ const exportToPDF = () => {
     opportunity.department_name || "Unknown",
   ]);
 
-  // Add the title
-  doc.setFontSize(14);
-  doc.text(title, 14, 15);
-
-  // Add the table
+  // Add the table using autoTable
   autoTable(doc, {
     head: [columns],
     body: rows,
-    startY: 25, // Ensure proper spacing
+    startY: 28, // Position below the header
     theme: "grid",
-    styles: { fontSize: 10 },
-    headStyles: { fillColor: [41, 128, 185] }, // Custom color for table header
+    styles: {
+      font: "times", // Set font for the table
+      fontSize: 10, // Standard font size
+    },
+    headStyles: { fillColor: [41, 128, 185] }, // Custom color for header background
   });
 
-  // Prepare space for signatures
+  // Signature Section
   const pageHeight = doc.internal.pageSize.height;
-  const signatureStartY = pageHeight - 40; // Adjusted to avoid overlapping with table footer
+  const signatureStartY = pageHeight - 40; // Adjust for footer space
 
-  // Calculate column positions for even spacing
+  // Positions for signatures
   const columnWidth = doc.internal.pageSize.width / 4;
   const positions = [14, columnWidth, columnWidth * 2, columnWidth * 3];
 
-  // Ensure the first opportunity exists to extract user and department details
+  // Add Signatures
+  doc.setFontSize(10);
+
+  // Department Head
   const firstOpportunity = displayedOpportunities[0];
   const userName = firstOpportunity?.user_name || "Unknown";
   const departmentName = firstOpportunity?.department_name || "Unknown";
 
-  // Add signature layout
-  doc.setFontSize(10);
-
-  // Department Head
   doc.text(`${userName} (sgnd)`, positions[0], signatureStartY - 5);
   doc.text("_________________________", positions[0], signatureStartY);
   doc.text(`${departmentName} Department Head`, positions[0], signatureStartY + 5);
@@ -299,6 +341,7 @@ const exportToPDF = () => {
   // Save the PDF file
   doc.save("Opportunities_Report.pdf");
 };
+
 </script>
 
 <div class="container mx-auto p-6">
@@ -396,3 +439,85 @@ const exportToPDF = () => {
     </table>
   {/if}
 </div>
+
+
+<!--Edit Modal-->
+{#if isEditModalOpen}
+  <div class="modal modal-open">
+    <div class="modal-box">
+      <h3 class="font-bold text-lg">Edit Opportunity</h3>
+
+      <div class="form-control mb-4">
+        <label class="label" for="opt_statement">Opportunity Statement</label>
+        {#if currentOpportunity}
+          <textarea
+            id="opt_statement"
+            bind:value={currentOpportunity.opt_statement}
+            class="textarea textarea-bordered"
+          ></textarea>
+        {/if}
+      </div>
+
+      <div class="form-control mb-4">
+        <label class="label" for="planned_actions">Planned Actions</label>
+        {#if currentOpportunity}
+          <textarea
+            id="planned_actions"
+            bind:value={currentOpportunity.planned_actions}
+            class="textarea textarea-bordered"
+          ></textarea>
+        {/if}
+      </div>
+
+      <div class="form-control mb-4">
+        <label class="label" for="kpi">KPI</label>
+        {#if currentOpportunity}
+          <textarea
+            bind:value={currentOpportunity.kpi}
+            class="textarea textarea-bordered"
+          ></textarea>
+        {/if}
+      </div>
+
+      <div class="form-control mb-4">
+        <label class="label" for="key_persons">Key Persons</label>
+        {#if currentOpportunity}
+          <textarea
+            bind:value={currentOpportunity.key_persons}
+            class="textarea textarea-bordered"
+          ></textarea>
+        {/if}
+      </div>
+
+      <div class="form-control mb-4">
+        <label class="label" for="target_output">Target Output</label>
+        {#if currentOpportunity}
+          <textarea
+            bind:value={currentOpportunity.target_output}
+            class="textarea textarea-bordered"
+          ></textarea>
+        {/if}
+      </div>
+
+      <div class="form-control mb-4">
+        <label class="label" for="budget">Budget</label>
+        {#if currentOpportunity}
+        <input
+          type="number"
+          bind:value={currentOpportunity.budget}
+          class="input input-bordered"
+        />
+        {/if}
+      </div>
+
+      <div class="modal-action">
+        <button class="btn btn-primary" on:click={saveOpportunity} disabled={isSaving}>
+          {isSaving ? "Saving..." : "Save"}
+        </button>
+        <button class="btn" on:click={() => (isEditModalOpen = false)}>
+          Cancel
+        </button>
+      </div>
+    </div>
+  </div>
+{/if}

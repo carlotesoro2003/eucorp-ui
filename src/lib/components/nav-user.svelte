@@ -11,6 +11,7 @@
 	import ChevronsUpDown from "lucide-svelte/icons/chevrons-up-down";
 	import LogOut from "lucide-svelte/icons/log-out";
 	import { goto } from "$app/navigation";
+	import Settings from "lucide-svelte/icons/settings";
   
 	export let user: User; // Receive user as a prop
   
@@ -127,8 +128,8 @@
 			  Account
 			</DropdownMenu.Item>
 			<DropdownMenu.Item>
-			  <Bell />
-			  Notifications
+			  <Settings />
+			  Settings
 			</DropdownMenu.Item>
 		  </DropdownMenu.Group>
 		  <DropdownMenu.Separator />

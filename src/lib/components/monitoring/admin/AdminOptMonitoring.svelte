@@ -104,12 +104,20 @@
             const doc = new jsPDF();
             const title = `Summary Report`;
 
+            doc.setFont("times", "normal");
+
+            // Title and Header Information
+            doc.setFontSize(12);
+            doc.text("MANUEL S. ENVERGA UNIVERSITY FOUNDATION", 14, 10);
+            doc.setFontSize(10);
+            doc.text("SY 2024-2025", 14, 20);
+
             doc.setFontSize(14);
             doc.text(title, 14, 15);
 
             const summaryLines = doc.splitTextToSize(data.summaryReport, 180);
             doc.setFontSize(12);
-            doc.text(summaryLines, 14, 25);
+            doc.text(summaryLines, 14, 35);
 
             doc.save("OpportunitiesSummary.pdf");
         } catch (error) {

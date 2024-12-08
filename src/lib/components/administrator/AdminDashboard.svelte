@@ -6,7 +6,7 @@
 
   let barChart: Chart | null = null;
   let pieChart: Chart<'doughnut', number[], string> | null = null;
-  let recentEvents: { description: string; created_at: string }[] = [];
+  let recentEvents: { description: string; created_at: string; event_type: string }[] = [];
   let isLoadingEvents = true;
 
   // Data for Bar Chart (Overview)
@@ -46,7 +46,7 @@
     isLoadingEvents = true;
     const { data, error } = await supabase
       .from('recent_events')
-      .select('description, created_at')
+      .select('description, created_at, event_type')
       .order('created_at', { ascending: false })
       .limit(5); // Fetch the last 5 events
 
@@ -173,7 +173,9 @@
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {#each recentEvents as event}
             <div class="bg-gray-700 p-4 rounded-lg shadow">
-              <p class="text-gray-200 text-sm">{event.description}</p>
+              {#if event.event_type == "opportunity"}
+              <a class="text-gray-200 text-sm" href="/opportunities">{event.description}</a>
+              {/if}
               <p class="text-gray-400 text-xs mt-2">
                 {new Date(event.created_at).toLocaleString()}
               </p>
