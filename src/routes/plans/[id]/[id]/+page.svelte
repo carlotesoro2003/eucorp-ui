@@ -310,79 +310,79 @@
   };
 
 
-    const exportToPDF = () => {
-      const userName = actionPlans[0]?.user_name || "Unknown";
-      const departmentName = actionPlans[0]?.department_name || "Unknown";
+      const exportToPDF = () => {
+        const userName = actionPlans[0]?.user_name || "Unknown";
+        const departmentName = actionPlans[0]?.department_name || "Unknown";
 
-      const doc = new jsPDF("landscape");
-      const title = `${departmentName} Action Plans for Objective: ${objective?.name || "N/A"}`;
-      const goalName = strategicGoal
-        ? `Strategic Goal: ${strategicGoal.name}`
-        : "No Strategic Goal Assigned";
+        const doc = new jsPDF("landscape");
+        const title = `${departmentName} Action Plans for Objective: ${objective?.name || "N/A"}`;
+        const goalName = strategicGoal
+          ? `Strategic Goal: ${strategicGoal.name}`
+          : "No Strategic Goal Assigned";
 
-      doc.setFontSize(10);
-      doc.text(title, 14, 15);
-      doc.text(goalName, 14, 25);
+        doc.setFontSize(10);
+        doc.text(title, 14, 15);
+        doc.text(goalName, 14, 25);
 
-      const columns = [
-        "User Name",
-        "Actions Taken",
-        "KPI",
-        "Target Output",
-        "Key Person Responsible",
-        "Department",
-      ];
-      const rows = displayedActionPlans.map((plan) => [
-        plan.user_name || "Unknown",
-        plan.actions_taken,
-        plan.kpi,
-        plan.target_output,
-        plan.key_person_responsible,
-        plan.department_name || "Unknown",
-      ]);
+        const columns = [
+          "User Name",
+          "Actions Taken",
+          "KPI",
+          "Target Output",
+          "Key Person Responsible",
+          "Department",
+        ];
+        const rows = displayedActionPlans.map((plan) => [
+          plan.user_name || "Unknown",
+          plan.actions_taken,
+          plan.kpi,
+          plan.target_output,
+          plan.key_person_responsible,
+          plan.department_name || "Unknown",
+        ]);
 
-      autoTable(doc, {
-        head: [columns],
-        body: rows,
-        startY: 35,
-        theme: "grid",
-        styles: { fontSize: 10 },
-        headStyles: { fillColor: [41, 128, 185] },
-      });
+        autoTable(doc, {
+          head: [columns],
+          body: rows,
+          startY: 35,
+          theme: "grid",
+          styles: { fontSize: 10 },
+          headStyles: { fillColor: [41, 128, 185] },
+        });
 
-      const pageHeight = doc.internal.pageSize.height;
-      const signatureStartY = pageHeight - 30;
+        const pageHeight = doc.internal.pageSize.height;
+        const signatureStartY = pageHeight - 30;
 
-      // User Signature
-      doc.text(`${userName} (sgnd)`, 14, signatureStartY - 5);
-      doc.text("_________________________", 14, signatureStartY);
-      doc.text(`${departmentName} Department Head`, 14, signatureStartY + 5);
+        // User Signature
+        doc.text(`${userName} (sgnd)`, 14, signatureStartY - 5);
+        doc.text("_________________________", 14, signatureStartY);
+        doc.text(`${departmentName} Department Head`, 14, signatureStartY + 5);
 
-      // Corporate Planning Officer
-      doc.text(`${adminName || "N/A"} (sgnd)`, 100, signatureStartY - 5);
-      doc.text("_________________________", 100, signatureStartY);
-      doc.text("Corporate Planning Officer", 100, signatureStartY + 5);
+        // Corporate Planning Officer
+        doc.text(`${adminName || "N/A"} (sgnd)`, 100, signatureStartY - 5);
+        doc.text("_________________________", 100, signatureStartY);
+        doc.text("Corporate Planning Officer", 100, signatureStartY + 5);
 
-      // Vice President
-      if (displayedActionPlans.some((plan) => plan.is_approved_vp)) {
-        doc.text(`${vicePresidentName || "N/A"} (sgnd)`, 180, signatureStartY - 5);
-      } else {
-        doc.text(`${vicePresidentName || "N/A"}`, 180, signatureStartY - 5);
-      }
-      doc.text("_________________________", 180, signatureStartY);
-      doc.text("Vice President", 180, signatureStartY + 5);
+        // Vice President
+        if (displayedActionPlans.some((plan) => plan.is_approved_vp)) {
+          doc.text(`${vicePresidentName || "N/A"} (sgnd)`, 180, signatureStartY - 5);
+        } else {
+          doc.text(`${vicePresidentName || "N/A"}`, 180, signatureStartY - 5);
+        }
+        doc.text("_________________________", 180, signatureStartY);
+        doc.text("Vice President", 180, signatureStartY + 5);
 
-      // President
-      if (displayedActionPlans.some((plan) => plan.is_approved_president)) {
-        doc.text(`${presidentName || "N/A"} (sgnd)`, 260, signatureStartY - 5);
-      } else {
-        doc.text(`${presidentName || "N/A"}`, 260, signatureStartY - 5);
-      }
-      doc.text("_________________________", 260, signatureStartY);
-      doc.text("President", 260, signatureStartY + 5);
+        // President
+        if (displayedActionPlans.some((plan) => plan.is_approved_president)) {
+          doc.text(`${presidentName || "N/A"} (sgnd)`, 260, signatureStartY - 5);
+        } else {
+          doc.text(`${presidentName || "N/A"}`, 260, signatureStartY - 5);
+        }
+        doc.text("_________________________", 260, signatureStartY);
+        doc.text("President", 260, signatureStartY + 5);
 
-      doc.save("ActionPlans.pdf");
-    };
+        doc.save("ActionPlans.pdf");
+      };
   </script>
 
   <div class="min-h-screen p-8">

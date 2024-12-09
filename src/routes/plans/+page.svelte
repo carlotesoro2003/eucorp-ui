@@ -57,7 +57,7 @@
               ? Math.max(...strategicGoals.map((goal) => goal.goal_no)) + 1
               : 1;
       }
-  };
+    };
 
   const createStrategicGoal = async (): Promise<void> => {
       isLoading = true;
